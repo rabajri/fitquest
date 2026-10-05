@@ -1,10 +1,9 @@
+import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -40,31 +39,49 @@ export default function RegisterScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="title">Create Account</ThemedText>
+    <KeyboardScreen>
+      <ThemedText type="title">Create Account</ThemedText>
 
-        <TextInput placeholder="Name" value={name} onChangeText={setName} style={styles.input} placeholderTextColor="#888" />
-        <TextInput placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input} placeholderTextColor="#888" />
-        <TextInput placeholder="Password" value={password} onChangeText={setPassword} autoCapitalize="none" secureTextEntry style={styles.input} placeholderTextColor="#888" />
+      <TextInput
+        placeholder="Name"
+        value={name}
+        onChangeText={setName}
+        style={styles.input}
+        placeholderTextColor="#888"
+      />
+      <TextInput
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        style={styles.input}
+        placeholderTextColor="#888"
+      />
+      <TextInput
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        autoCapitalize="none"
+        secureTextEntry
+        style={styles.input}
+        placeholderTextColor="#888"
+      />
 
-        <Pressable onPress={handleRegister} style={styles.button}>
-          <ThemedText style={{ color: 'white' }}>Sign Up</ThemedText>
-        </Pressable>
+      <Pressable onPress={handleRegister} style={styles.button}>
+        <ThemedText style={{ color: 'white' }}>Sign Up</ThemedText>
+      </Pressable>
 
-        <Pressable onPress={() => router.push('/login')}>
-          <ThemedText>Already have an account? Log in</ThemedText>
-        </Pressable>
+      <Pressable onPress={() => router.push('/login')}>
+        <ThemedText>Already have an account? Log in</ThemedText>
+      </Pressable>
 
-        {!!message && <ThemedText>{message}</ThemedText>}
-      </SafeAreaView>
-    </ThemedView>
+      {!!message && <ThemedText>{message}</ThemedText>}
+    </KeyboardScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, paddingHorizontal: 24 },
   input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%', color: 'white' },
   button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center' },
 });
