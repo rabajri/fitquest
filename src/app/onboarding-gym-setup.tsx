@@ -1,11 +1,10 @@
+import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { Pressable, StyleSheet, TextInput } from 'react-native';
 
 const EQUIPMENT_OPTIONS = ['Dumbbells', 'Barbell', 'Resistance Bands', 'Machines', 'Full Gym Access'];
 const MACHINE_OPTIONS = [
@@ -124,102 +123,95 @@ export default function OnboardingGymSetupScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <ThemedText type="title">Gym Setup</ThemedText>
+    <KeyboardScreen>
+      <ThemedText type="title">Gym Setup</ThemedText>
 
-        <ThemedText type="small">
-          Leave equipment unselected if you'll be training with bodyweight only.
-        </ThemedText>
-        <ThemedText>Equipment Available</ThemedText>
-        <ThemedView style={styles.wrapRow}>
-          {EQUIPMENT_OPTIONS.map((item) => (
-            <Pressable
-              key={item}
-              onPress={() => toggleEquipment(item)}
-              style={[styles.pill, equipment.includes(item) && styles.pillActive]}
-            >
-              <ThemedText>{item}</ThemedText>
+      <ThemedText type="small">
+        Leave equipment unselected if you'll be training with bodyweight only.
+      </ThemedText>
+      <ThemedText>Equipment Available</ThemedText>
+      <ThemedView style={styles.wrapRow}>
+        {EQUIPMENT_OPTIONS.map((item) => (
+          <Pressable
+            key={item}
+            onPress={() => toggleEquipment(item)}
+            style={[styles.pill, equipment.includes(item) && styles.pillActive]}
+          >
+            <ThemedText>{item}</ThemedText>
+          </Pressable>
+        ))}
+      </ThemedView>
+
+      {hasDumbbells && (
+        <>
+          <ThemedText>Your Dumbbell Weights (kg)</ThemedText>
+          <ThemedView style={styles.row}>
+            <TextInput
+              placeholder="e.g. 10"
+              value={newDumbbellWeight}
+              onChangeText={setNewDumbbellWeight}
+              keyboardType="decimal-pad"
+              style={[styles.input, { flex: 1 }]}
+              placeholderTextColor="#888"
+            />
+            <Pressable onPress={addDumbbellWeight} style={styles.addButton}>
+              <ThemedText style={{ color: 'white' }}>Add</ThemedText>
             </Pressable>
-          ))}
-        </ThemedView>
-
-        {hasDumbbells && (
-          <>
-            <ThemedText>Your Dumbbell Weights (kg)</ThemedText>
-            <ThemedView style={styles.row}>
-              <TextInput
-                placeholder="e.g. 10"
-                value={newDumbbellWeight}
-                onChangeText={setNewDumbbellWeight}
-                keyboardType="decimal-pad"
-                style={[styles.input, { flex: 1 }]}
-                placeholderTextColor="#888"
-              />
-              <Pressable onPress={addDumbbellWeight} style={styles.addButton}>
-                <ThemedText style={{ color: 'white' }}>Add</ThemedText>
+          </ThemedView>
+          <ThemedView style={styles.wrapRow}>
+            {dumbbellWeights.map((w) => (
+              <Pressable key={w} onPress={() => removeDumbbellWeight(w)} style={styles.chip}>
+                <ThemedText>{w} kg ✕</ThemedText>
               </Pressable>
-            </ThemedView>
-            <ThemedView style={styles.wrapRow}>
-              {dumbbellWeights.map((w) => (
-                <Pressable key={w} onPress={() => removeDumbbellWeight(w)} style={styles.chip}>
-                  <ThemedText>{w} kg ✕</ThemedText>
-                </Pressable>
-              ))}
-            </ThemedView>
-          </>
-        )}
+            ))}
+          </ThemedView>
+        </>
+      )}
 
-        {hasMachines && (
-          <>
-            <ThemedText>Which Machines?</ThemedText>
-            <ThemedView style={styles.wrapRow}>
-              {MACHINE_OPTIONS.map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => toggleMachine(item)}
-                  style={[styles.pill, machineTypes.includes(item) && styles.pillActive]}
-                >
-                  <ThemedText>{item}</ThemedText>
-                </Pressable>
-              ))}
-            </ThemedView>
-          </>
-        )}
+      {hasMachines && (
+        <>
+          <ThemedText>Which Machines?</ThemedText>
+          <ThemedView style={styles.wrapRow}>
+            {MACHINE_OPTIONS.map((item) => (
+              <Pressable
+                key={item}
+                onPress={() => toggleMachine(item)}
+                style={[styles.pill, machineTypes.includes(item) && styles.pillActive]}
+              >
+                <ThemedText>{item}</ThemedText>
+              </Pressable>
+            ))}
+          </ThemedView>
+        </>
+      )}
 
-        <ThemedText>Training Days (max {MAX_DAYS})</ThemedText>
-        <ThemedView style={styles.wrapRow}>
-          {DAYS.map((day) => (
-            <Pressable
-              key={day}
-              onPress={() => toggleDay(day)}
-              style={[styles.dayPill, selectedDays.includes(day) && styles.pillActive]}
-            >
-              <ThemedText>{day}</ThemedText>
-            </Pressable>
-          ))}
-        </ThemedView>
+      <ThemedText>Training Days (max {MAX_DAYS})</ThemedText>
+      <ThemedView style={styles.wrapRow}>
+        {DAYS.map((day) => (
+          <Pressable
+            key={day}
+            onPress={() => toggleDay(day)}
+            style={[styles.dayPill, selectedDays.includes(day) && styles.pillActive]}
+          >
+            <ThemedText>{day}</ThemedText>
+          </Pressable>
+        ))}
+      </ThemedView>
 
-        <Pressable onPress={handleContinue} style={styles.button}>
-          <ThemedText style={{ color: 'white' }}>Continue</ThemedText>
-        </Pressable>
+      <Pressable onPress={handleContinue} style={styles.button}>
+        <ThemedText style={{ color: 'white' }}>Continue</ThemedText>
+      </Pressable>
 
-        <Pressable onPress={handleSwitchToSteps}>
-          <ThemedText type="small">Actually, I'd rather just track steps</ThemedText>
-        </Pressable>
+      <Pressable onPress={handleSwitchToSteps}>
+        <ThemedText type="small">Actually, I'd rather just track steps</ThemedText>
+      </Pressable>
 
-        {!!message && <ThemedText>{message}</ThemedText>}
-      </ScrollView>
-    </SafeAreaView>
-  </ThemedView>
+      {!!message && <ThemedText>{message}</ThemedText>}
+    </KeyboardScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1, paddingHorizontal: 24 },
-  scrollContent: { alignItems: 'center', gap: 10, paddingVertical: 24 },
   input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, color: 'white' },
   button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
   addButton: { backgroundColor: '#3b82f6', borderRadius: 8, paddingHorizontal: 16, justifyContent: 'center' },
