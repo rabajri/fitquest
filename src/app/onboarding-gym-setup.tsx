@@ -12,7 +12,7 @@ const MACHINE_OPTIONS = [
   'Leg Press', 'Lat Pulldown', 'Cable Machine', 'Smith Machine',
   'Chest Press', 'Rowing Machine', 'Leg Extension', 'Leg Curl',
 ];
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Th u', 'Fri', 'Sat'];
 const MAX_DAYS = 6;
 
 export default function OnboardingGymSetupScreen() {
