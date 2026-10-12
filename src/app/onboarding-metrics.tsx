@@ -30,26 +30,27 @@ export default function OnboardingMetricsScreen() {
       return;
     }
 
-    // Convert to metric for storage if needed (we store everything in cm/kg internally)
+    // We always store height in cm, whatever unit the user picked
     const heightCm = unitSystem === 'imperial' ? inchesToCm(Number(height)) : Number(height);
 
     const { error } = await supabase
       .from('user_profiles')
-      .update({
-        age: Number(age),
-        gender,
-        height_cm: heightCm,
-        unit_system: unitSystem,
-      })
-      .eq('user_id', user.id);
+      .upsert(
+        {
+          user_id: user.id,
+          age: Number(age),
+          gender,
+          height_cm: heightCm,
+          unit_system: unitSystem,
+        },
+        { onConflict: 'user_id' }
+      );
 
     if (error) {
       setMessage(`Error: ${error.message}`);
       return;
     }
 
-    // weight is plan-specific, not profile-specific — we'll pass it to the next
-    // onboarding step (Goal Fork) once we build it. For now, just confirm.
     router.replace('/onboarding-goal');
   }
 

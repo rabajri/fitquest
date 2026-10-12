@@ -1,6 +1,7 @@
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getRecoveryWarnings } from '@/lib/recovery';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -11,7 +12,7 @@ const MACHINE_OPTIONS = [
   'Leg Press', 'Lat Pulldown', 'Cable Machine', 'Smith Machine',
   'Chest Press', 'Rowing Machine', 'Leg Extension', 'Leg Curl',
 ];
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Th u', 'Fri', 'Sat'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MAX_DAYS = 6;
 
 export default function OnboardingGymSetupScreen() {
@@ -63,6 +64,7 @@ export default function OnboardingGymSetupScreen() {
 
   const hasDumbbells = equipment.includes('Dumbbells');
   const hasMachines = equipment.includes('Machines');
+  const warnings = getRecoveryWarnings(selectedDays);
 
   async function handleContinue() {
     if (selectedDays.length === 0) {
@@ -101,7 +103,7 @@ export default function OnboardingGymSetupScreen() {
       return;
     }
 
-    router.replace('/dashboard-placeholder');
+    router.replace('/onboarding-reality-check');
   }
 
   async function handleSwitchToSteps() {
@@ -119,7 +121,7 @@ export default function OnboardingGymSetupScreen() {
       return;
     }
 
-    router.replace('/dashboard-placeholder');
+    router.replace('/onboarding-reality-check');
   }
 
   return (
@@ -198,6 +200,12 @@ export default function OnboardingGymSetupScreen() {
         ))}
       </ThemedView>
 
+      {warnings.map((w) => (
+        <ThemedView key={w} style={styles.warningBox}>
+          <ThemedText type="small" style={{ color: '#fbbf24' }}>⚠️ {w}</ThemedText>
+        </ThemedView>
+      ))}
+
       <Pressable onPress={handleContinue} style={styles.button}>
         <ThemedText style={{ color: 'white' }}>Continue</ThemedText>
       </Pressable>
@@ -219,6 +227,7 @@ const styles = StyleSheet.create({
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
   pill: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 10, paddingHorizontal: 14 },
   chip: { borderWidth: 1, borderColor: '#666', borderRadius: 16, padding: 8, paddingHorizontal: 12, backgroundColor: '#222' },
-  dayPill: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 10, width: 44, alignItems: 'center' },
+  dayPill: { borderWidth: 1, borderColor: '#444', borderRadius: 8, paddingVertical: 10, width: 54, alignItems: 'center' },
   pillActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  warningBox: { borderWidth: 1, borderColor: '#fbbf24', borderRadius: 8, padding: 10, width: '100%' },
 });

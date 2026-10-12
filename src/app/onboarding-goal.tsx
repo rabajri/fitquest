@@ -4,8 +4,8 @@ import { ThemedView } from '@/components/themed-view';
 import { getHealthyWeightRangeKg } from '@/lib/bmi';
 import { supabase } from '@/lib/supabase';
 import { lbToKg } from '@/lib/units';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, TextInput } from 'react-native';
 
 type Goal = 'lose_weight' | 'gain_muscle' | '';
@@ -16,26 +16,42 @@ export default function OnboardingGoalScreen() {
   const [targetWeight, setTargetWeight] = useState('');
   const [wantsWorkout, setWantsWorkout] = useState<boolean | null>(null);
   const [message, setMessage] = useState('');
-  const [heightCm, setHeightCm] = useState<number | null>(null);
   const [healthyRange, setHealthyRange] = useState<{ min: number; max: number } | null>(null);
   const [isImperial, setIsImperial] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('height_cm, unit_system')
-        .eq('user_id', user.id)
-        .single();
+  // Runs every time this screen appears, not just the first time
+  useFocusEffect(
+    useCallback(() => {
+      async function loadProfile() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setMessage('Not logged in.');
+          return;
+        }
 
-      if (profile?.height_cm) {
-        setHeightCm(profile.height_cm);
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('height_cm, unit_system')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          setMessage(`Could not load your height: ${error.message}`);
+          return;
+        }
+        if (!profile?.height_cm) {
+          setMessage('No height found on your profile. Go back and fill in About You.');
+          return;
+        }
+
+        setMessage('');
         setHealthyRange(getHealthyWeightRangeKg(profile.height_cm));
+        setIsImperial(profile.unit_system === 'imperial');
       }
-      setIsImperial(profile?.unit_system === 'imperial');
-    });
-  }, []);
+
+      loadProfile();
+    }, [])
+  );
 
   async function handleContinue() {
     if (!goal || !currentWeight) {
@@ -57,21 +73,9 @@ export default function OnboardingGoalScreen() {
       return;
     }
 
-    if (targetWeightKg) {
-      const { data: { user: freshUser } } = await supabase.auth.getUser();
-      const { data: freshProfile } = await supabase
-        .from('user_profiles')
-        .select('height_cm')
-        .eq('user_id', freshUser?.id)
-        .single();
-
-      if (freshProfile?.height_cm) {
-        const range = getHealthyWeightRangeKg(freshProfile.height_cm);
-        if (targetWeightKg < range.min) {
-          setMessage(`Target weight is below a healthy minimum for your height (${range.min} kg).`);
-          return;
-        }
-      }
+    if (targetWeightKg && healthyRange && targetWeightKg < healthyRange.min) {
+      setMessage(`Target weight is below a healthy minimum for your height (${healthyRange.min} kg).`);
+      return;
     }
 
     setMessage('Saving...');
@@ -84,21 +88,38 @@ export default function OnboardingGoalScreen() {
 
     const finalWantsWorkout = goal === 'gain_muscle' ? true : wantsWorkout;
 
-    const { error } = await supabase.from('user_plans').insert({
-      user_id: user.id,
+    const planData = {
       goal_type: goal,
       current_weight_kg: currentWeightKg,
       target_weight_kg: targetWeightKg,
       wants_workout: finalWantsWorkout,
       mandatory_step_goal_active: !finalWantsWorkout,
-    });
+    };
+
+    // Update the user's existing plan if there is one, otherwise create it
+    const { data: existingPlan, error: lookupError } = await supabase
+      .from('user_plans')
+      .select('id')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lookupError) {
+      setMessage(`Error: ${lookupError.message}`);
+      return;
+    }
+
+    const { error } = existingPlan
+      ? await supabase.from('user_plans').update(planData).eq('id', existingPlan.id)
+      : await supabase.from('user_plans').insert({ user_id: user.id, ...planData });
 
     if (error) {
       setMessage(`Error: ${error.message}`);
       return;
     }
 
-    router.replace(finalWantsWorkout ? '/onboarding-gym-setup' : '/dashboard-placeholder');
+      router.replace(finalWantsWorkout ? '/onboarding-gym-setup' : '/onboarding-reality-check');
   }
 
   return (
