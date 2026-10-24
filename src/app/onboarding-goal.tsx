@@ -11,7 +11,8 @@ import { Pressable, StyleSheet, TextInput } from 'react-native';
 type Goal = 'lose_weight' | 'gain_muscle' | '';
 
 export default function OnboardingGoalScreen() {
-  const [goal, setGoal] = useState<Goal>('');
+  // Weight loss is the only available goal for now
+  const [goal, setGoal] = useState<Goal>('lose_weight');
   const [currentWeight, setCurrentWeight] = useState('');
   const [targetWeight, setTargetWeight] = useState('');
   const [wantsWorkout, setWantsWorkout] = useState<boolean | null>(null);
@@ -119,7 +120,7 @@ export default function OnboardingGoalScreen() {
       return;
     }
 
-      router.replace(finalWantsWorkout ? '/onboarding-gym-setup' : '/onboarding-reality-check');
+    router.replace(finalWantsWorkout ? '/onboarding-gym-setup' : '/dashboard-placeholder');
   }
 
   return (
@@ -133,11 +134,9 @@ export default function OnboardingGoalScreen() {
         >
           <ThemedText>Lose Weight</ThemedText>
         </Pressable>
-        <Pressable
-          onPress={() => setGoal('gain_muscle')}
-          style={[styles.pill, goal === 'gain_muscle' && styles.pillActive]}
-        >
+        <Pressable disabled style={[styles.pill, styles.pillDisabled]}>
           <ThemedText>Gain Muscle</ThemedText>
+          <ThemedText type="small">Coming soon</ThemedText>
         </Pressable>
       </ThemedView>
 
@@ -185,12 +184,6 @@ export default function OnboardingGoalScreen() {
         </>
       )}
 
-      {goal === 'gain_muscle' && (
-        <ThemedText type="small">
-          Muscle gain requires a workout plan — we'll set that up next.
-        </ThemedText>
-      )}
-
       <Pressable onPress={handleContinue} style={styles.button}>
         <ThemedText style={{ color: 'white' }}>Continue</ThemedText>
       </Pressable>
@@ -206,4 +199,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8, width: '100%' },
   pill: { flex: 1, borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 10, alignItems: 'center' },
   pillActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  pillDisabled: { opacity: 0.4 },
 });
