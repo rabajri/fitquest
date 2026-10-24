@@ -1,6 +1,7 @@
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { HEIGHT_LIMITS_CM } from '@/engine/constants';
 import { supabase } from '@/lib/supabase';
 import { inchesToCm } from '@/lib/units';
 import { router } from 'expo-router';
@@ -22,6 +23,16 @@ export default function OnboardingMetricsScreen() {
       return;
     }
 
+    // We always store height in cm, whatever unit the user picked
+    const heightCm = unitSystem === 'imperial' ? inchesToCm(Number(height)) : Number(height);
+
+    if (!(heightCm >= HEIGHT_LIMITS_CM.min && heightCm <= HEIGHT_LIMITS_CM.max)) {
+      setMessage(
+        `Height should be between ${HEIGHT_LIMITS_CM.min} and ${HEIGHT_LIMITS_CM.max} cm. Please check the number and the unit.`
+      );
+      return;
+    }
+
     setMessage('Saving...');
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -29,9 +40,6 @@ export default function OnboardingMetricsScreen() {
       setMessage('Not logged in.');
       return;
     }
-
-    // We always store height in cm, whatever unit the user picked
-    const heightCm = unitSystem === 'imperial' ? inchesToCm(Number(height)) : Number(height);
 
     const { error } = await supabase
       .from('user_profiles')

@@ -10,6 +10,12 @@ export const RANK_USES_CUMULATIVE_PROGRESS = true;
 
 export const KCAL_PER_KG = 7700;
 
+/** Heights outside this range are rejected at onboarding (always in cm). */
+export const HEIGHT_LIMITS_CM = {
+  min: 120,
+  max: 230,
+} as const;
+
 export const WEIGHT_LOSS = {
   /** Hard fail if the deadline implies more than this % of body weight per week. */
   maxPercentPerWeek: 0.01,
