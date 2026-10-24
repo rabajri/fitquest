@@ -16,6 +16,12 @@ export const HEIGHT_LIMITS_CM = {
   max: 230,
 } as const;
 
+/** Training days per week → activity level. 0 days is sedentary. (The spec's ranges overlap at 3 days; 3 counts as light.) */
+export const ACTIVITY_BY_DAYS = {
+  lightMaxDays: 3,
+  moderateMaxDays: 5,
+} as const;
+
 export const WEIGHT_LOSS = {
   /** Hard fail if the deadline implies more than this % of body weight per week. */
   maxPercentPerWeek: 0.01,
