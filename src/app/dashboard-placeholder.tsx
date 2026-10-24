@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { LOGGING, POINTS, caloriePoints } from '@/engine';
+import { LOGGING, POINTS, caloriePoints, movementPoints } from '@/engine';
 import { todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { router, useFocusEffect } from 'expo-router';
@@ -34,10 +34,12 @@ type TodayLog = {
   carb_logged: number;
   water_target_liters: number | null;
   water_logged_liters: number;
+  steps_target: number | null;
+  steps_logged: number;
 };
 
 const LOG_COLUMNS =
-  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters';
+  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged';
 
 function round1(n: number) {
   return Math.round(n * 10) / 10;
@@ -52,6 +54,7 @@ export default function DashboardPlaceholder() {
   const [foodProtein, setFoodProtein] = useState('');
   const [foodFat, setFoodFat] = useState('');
   const [foodCarbs, setFoodCarbs] = useState('');
+  const [stepsInput, setStepsInput] = useState('');
 
   // Reload every time the dashboard appears
   useFocusEffect(
@@ -186,14 +189,42 @@ export default function DashboardPlaceholder() {
     setFoodCarbs('');
   }
 
+  async function handleAddSteps() {
+    if (!log) return;
+
+    const steps = Number(stepsInput);
+    if (!stepsInput || Number.isNaN(steps) || steps <= 0) {
+      setMessage('Please enter the number of steps you walked.');
+      return;
+    }
+
+    const next = Math.round(log.steps_logged + steps);
+
+    const { error } = await supabase
+      .from('daily_logs')
+      .update({ steps_logged: next })
+      .eq('id', log.id);
+
+    if (error) {
+      setMessage(`Could not save steps: ${error.message}`);
+      return;
+    }
+
+    setMessage('');
+    setLog({ ...log, steps_logged: next });
+    setStepsInput('');
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace('/login');
   }
 
-  // Live preview of today's calorie points (all the maths is in the engine)
+  // Live preview of today's points (all the maths is in the engine)
   const todayCaloriePoints =
     log && log.calorie_target ? caloriePoints(log.calorie_logged, log.calorie_target) : 0;
+  const todayStepPoints =
+    log && log.steps_target ? movementPoints(log.steps_logged, log.steps_target) : 0;
 
   return (
     <ThemedView style={styles.container}>
@@ -216,6 +247,27 @@ export default function DashboardPlaceholder() {
                   </ThemedText>
                 </Pressable>
               </ThemedView>
+
+              {log.steps_target !== null && (
+                <ThemedView style={styles.card}>
+                  <ThemedText type="subtitle">Steps</ThemedText>
+                  <ProgressRow label="Steps" logged={log.steps_logged} target={log.steps_target} unit="steps" />
+                  <ThemedText type="small">
+                    Movement points right now: {round1(todayStepPoints)} / {POINTS.movementMax}
+                  </ThemedText>
+                  <TextInput
+                    placeholder="Steps you just walked"
+                    value={stepsInput}
+                    onChangeText={setStepsInput}
+                    keyboardType="number-pad"
+                    style={styles.input}
+                    placeholderTextColor="#888"
+                  />
+                  <Pressable onPress={handleAddSteps} style={styles.addButton}>
+                    <ThemedText style={{ color: 'white' }}>Add steps</ThemedText>
+                  </Pressable>
+                </ThemedView>
+              )}
 
               <ThemedView style={styles.card}>
                 <ThemedText type="subtitle">Food</ThemedText>
