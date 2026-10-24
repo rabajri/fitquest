@@ -5,7 +5,7 @@ import { todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type PlanSummary = {
@@ -24,14 +24,34 @@ type PlanSummary = {
 
 type TodayLog = {
   id: string;
+  calorie_target: number | null;
+  calorie_logged: number;
+  protein_target: number | null;
+  protein_logged: number;
+  fat_target: number | null;
+  fat_logged: number;
+  carb_target: number | null;
+  carb_logged: number;
   water_target_liters: number | null;
   water_logged_liters: number;
 };
+
+const LOG_COLUMNS =
+  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters';
+
+function round1(n: number) {
+  return Math.round(n * 10) / 10;
+}
 
 export default function DashboardPlaceholder() {
   const [plan, setPlan] = useState<PlanSummary | null>(null);
   const [log, setLog] = useState<TodayLog | null>(null);
   const [message, setMessage] = useState('Loading your plan...');
+
+  const [foodCalories, setFoodCalories] = useState('');
+  const [foodProtein, setFoodProtein] = useState('');
+  const [foodFat, setFoodFat] = useState('');
+  const [foodCarbs, setFoodCarbs] = useState('');
 
   // Reload every time the dashboard appears
   useFocusEffect(
@@ -67,7 +87,7 @@ export default function DashboardPlaceholder() {
         const today = todayLocalDate();
         const { data: existing, error: logError } = await supabase
           .from('daily_logs')
-          .select('id, water_target_liters, water_logged_liters')
+          .select(LOG_COLUMNS)
           .eq('user_id', user.id)
           .eq('log_date', today)
           .maybeSingle();
@@ -92,7 +112,7 @@ export default function DashboardPlaceholder() {
               water_target_liters: planData.water_liters,
               steps_target: planData.step_goal,
             })
-            .select('id, water_target_liters, water_logged_liters')
+            .select(LOG_COLUMNS)
             .single();
 
           if (createError) {
@@ -127,6 +147,45 @@ export default function DashboardPlaceholder() {
     setLog({ ...log, water_logged_liters: next });
   }
 
+  async function handleAddFood() {
+    if (!log) return;
+
+    const calories = Number(foodCalories || 0);
+    const protein = Number(foodProtein || 0);
+    const fat = Number(foodFat || 0);
+    const carbs = Number(foodCarbs || 0);
+
+    if ([calories, protein, fat, carbs].some((n) => Number.isNaN(n) || n < 0)) {
+      setMessage('Please enter numbers only (no negatives).');
+      return;
+    }
+    if (calories + protein + fat + carbs === 0) {
+      setMessage('Enter at least one number to add.');
+      return;
+    }
+
+    const next = {
+      calorie_logged: round1(log.calorie_logged + calories),
+      protein_logged: round1(log.protein_logged + protein),
+      fat_logged: round1(log.fat_logged + fat),
+      carb_logged: round1(log.carb_logged + carbs),
+    };
+
+    const { error } = await supabase.from('daily_logs').update(next).eq('id', log.id);
+
+    if (error) {
+      setMessage(`Could not save food: ${error.message}`);
+      return;
+    }
+
+    setMessage('');
+    setLog({ ...log, ...next });
+    setFoodCalories('');
+    setFoodProtein('');
+    setFoodFat('');
+    setFoodCarbs('');
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace('/login');
@@ -135,23 +194,70 @@ export default function DashboardPlaceholder() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <ThemedText type="title">Today</ThemedText>
 
           {!!message && <ThemedText>{message}</ThemedText>}
 
           {log && (
-            <ThemedView style={styles.card}>
-              <ThemedText type="subtitle">Water</ThemedText>
-              <ThemedText>
-                {log.water_logged_liters} / {log.water_target_liters ?? '?'} L
-              </ThemedText>
-              <Pressable onPress={handleAddWater} style={styles.addButton}>
-                <ThemedText style={{ color: 'white' }}>
-                  + {LOGGING.waterStepLiters * 1000} ml
+            <>
+              <ThemedView style={styles.card}>
+                <ThemedText type="subtitle">Water</ThemedText>
+                <ThemedText>
+                  {log.water_logged_liters} / {log.water_target_liters ?? '?'} L
                 </ThemedText>
-              </Pressable>
-            </ThemedView>
+                <Pressable onPress={handleAddWater} style={styles.addButton}>
+                  <ThemedText style={{ color: 'white' }}>
+                    + {LOGGING.waterStepLiters * 1000} ml
+                  </ThemedText>
+                </Pressable>
+              </ThemedView>
+
+              <ThemedView style={styles.card}>
+                <ThemedText type="subtitle">Food</ThemedText>
+                <ProgressRow label="Calories" logged={log.calorie_logged} target={log.calorie_target} unit="kcal" />
+                <ProgressRow label="Protein" logged={log.protein_logged} target={log.protein_target} unit="g" />
+                <ProgressRow label="Fat" logged={log.fat_logged} target={log.fat_target} unit="g" />
+                <ProgressRow label="Carbs" logged={log.carb_logged} target={log.carb_target} unit="g" />
+
+                <ThemedText type="small">Add what you just ate:</ThemedText>
+                <TextInput
+                  placeholder="Calories (kcal)"
+                  value={foodCalories}
+                  onChangeText={setFoodCalories}
+                  keyboardType="decimal-pad"
+                  style={styles.input}
+                  placeholderTextColor="#888"
+                />
+                <TextInput
+                  placeholder="Protein (g)"
+                  value={foodProtein}
+                  onChangeText={setFoodProtein}
+                  keyboardType="decimal-pad"
+                  style={styles.input}
+                  placeholderTextColor="#888"
+                />
+                <TextInput
+                  placeholder="Fat (g)"
+                  value={foodFat}
+                  onChangeText={setFoodFat}
+                  keyboardType="decimal-pad"
+                  style={styles.input}
+                  placeholderTextColor="#888"
+                />
+                <TextInput
+                  placeholder="Carbs (g)"
+                  value={foodCarbs}
+                  onChangeText={setFoodCarbs}
+                  keyboardType="decimal-pad"
+                  style={styles.input}
+                  placeholderTextColor="#888"
+                />
+                <Pressable onPress={handleAddFood} style={styles.addButton}>
+                  <ThemedText style={{ color: 'white' }}>Add</ThemedText>
+                </Pressable>
+              </ThemedView>
+            </>
           )}
 
           {plan && (
@@ -202,12 +308,34 @@ function Row({ label, value, unit }: { label: string; value: number | null; unit
   );
 }
 
+function ProgressRow({
+  label,
+  logged,
+  target,
+  unit,
+}: {
+  label: string;
+  logged: number;
+  target: number | null;
+  unit: string;
+}) {
+  return (
+    <ThemedView style={styles.rowLine}>
+      <ThemedText>{label}</ThemedText>
+      <ThemedText>
+        {logged.toLocaleString()} / {target === null ? '?' : target.toLocaleString()} {unit}
+      </ThemedText>
+    </ThemedView>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   content: { padding: 20, gap: 16 },
   card: { borderWidth: 1, borderColor: '#444', borderRadius: 12, padding: 16, gap: 8 },
   rowLine: { flexDirection: 'row', justifyContent: 'space-between' },
+  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%', color: 'white' },
   addButton: { backgroundColor: '#3b82f6', padding: 12, borderRadius: 8, alignItems: 'center' },
   button: { backgroundColor: '#ef4444', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 8 },
 });
