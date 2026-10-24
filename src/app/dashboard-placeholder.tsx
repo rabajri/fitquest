@@ -1,6 +1,17 @@
+import { RankCard } from '@/components/game/rank-card';
+import { ScoreRing } from '@/components/game/score-ring';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { LOGGING, POINTS, caloriePoints, movementPoints } from '@/engine';
+import { GAME } from '@/constants/game-theme';
+import {
+  DAILY_POINTS_MAX,
+  LOGGING,
+  POINTS,
+  caloriePoints,
+  levelFromXp,
+  movementPoints,
+  rankLabel,
+} from '@/engine';
 import { todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { router, useFocusEffect } from 'expo-router';
@@ -225,17 +236,35 @@ export default function DashboardPlaceholder() {
     log && log.calorie_target ? caloriePoints(log.calorie_logged, log.calorie_target) : 0;
   const todayStepPoints =
     log && log.steps_target ? movementPoints(log.steps_logged, log.steps_target) : 0;
+  // Sleep and tasks are not tracked yet, so they count as 0 for now
+  const todayTotalPoints = todayCaloriePoints + todayStepPoints;
+
+  // XP and rank are not tracked yet: everyone is a Recruit with 0 XP for now
+  const levelInfo = levelFromXp(0);
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <ThemedText type="title">Today</ThemedText>
+          <ThemedText type="small" style={styles.eyebrow}>TODAY</ThemedText>
 
           {!!message && <ThemedText>{message}</ThemedText>}
 
           {log && (
             <>
+              <RankCard
+                rankLabel={rankLabel('recruit')}
+                level={levelInfo.level}
+                xpIntoLevel={levelInfo.xpIntoLevel}
+                xpForNext={levelInfo.xpForNext}
+              />
+
+              <ScoreRing
+                points={todayTotalPoints}
+                maxPoints={DAILY_POINTS_MAX}
+                goodDayAt={POINTS.goodDayBase}
+              />
+
               <ThemedView style={styles.card}>
                 <ThemedText type="subtitle">Water</ThemedText>
                 <ThemedText>
@@ -389,9 +418,10 @@ function ProgressRow({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: GAME.colors.background },
   safeArea: { flex: 1 },
-  content: { padding: 20, gap: 16 },
+  content: { padding: GAME.spacing.screen, gap: GAME.spacing.gap },
+  eyebrow: { letterSpacing: 2, color: GAME.colors.textMuted },
   card: { borderWidth: 1, borderColor: '#444', borderRadius: 12, padding: 16, gap: 8 },
   rowLine: { flexDirection: 'row', justifyContent: 'space-between' },
   input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%', color: 'white' },

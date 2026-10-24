@@ -49,3 +49,7 @@ export function loggingPoints(completedShare: number): number {
   if (completedShare > 0) return POINTS.loggingSomePoints;
   return 0;
 }
+
+/** Maximum points available from the four daily scores. */
+export const DAILY_POINTS_MAX =
+  POINTS.calorieMax + POINTS.movementMax + POINTS.taskMax + POINTS.sleepMax;
