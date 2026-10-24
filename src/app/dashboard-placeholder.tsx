@@ -1,7 +1,7 @@
+import { QuestCard } from '@/components/game/quest-card';
+import { FoodIcon, SleepIcon, StepsIcon, TasksIcon, WaterIcon } from '@/components/game/quest-icons';
 import { RankCard } from '@/components/game/rank-card';
 import { ScoreRing } from '@/components/game/score-ring';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { GAME } from '@/constants/game-theme';
 import {
   DAILY_POINTS_MAX,
@@ -16,7 +16,7 @@ import { todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type PlanSummary = {
@@ -54,6 +54,11 @@ const LOG_COLUMNS =
 
 function round1(n: number) {
   return Math.round(n * 10) / 10;
+}
+
+/** Share from 0 to 1, safe when there is no target. */
+function share(logged: number, target: number | null) {
+  return target && target > 0 ? Math.min(logged / target, 1) : 0;
 }
 
 export default function DashboardPlaceholder() {
@@ -243,12 +248,12 @@ export default function DashboardPlaceholder() {
   const levelInfo = levelFromXp(0);
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <ThemedText type="small" style={styles.eyebrow}>TODAY</ThemedText>
+          <Text style={styles.eyebrow}>TODAY</Text>
 
-          {!!message && <ThemedText>{message}</ThemedText>}
+          {!!message && <Text style={styles.message}>{message}</Text>}
 
           {log && (
             <>
@@ -265,57 +270,34 @@ export default function DashboardPlaceholder() {
                 goodDayAt={POINTS.goodDayBase}
               />
 
-              <ThemedView style={styles.card}>
-                <ThemedText type="subtitle">Water</ThemedText>
-                <ThemedText>
-                  {log.water_logged_liters} / {log.water_target_liters ?? '?'} L
-                </ThemedText>
-                <Pressable onPress={handleAddWater} style={styles.addButton}>
-                  <ThemedText style={{ color: 'white' }}>
-                    + {LOGGING.waterStepLiters * 1000} ml
-                  </ThemedText>
-                </Pressable>
-              </ThemedView>
+              <Text style={styles.sectionTitle}>Daily quests</Text>
 
-              {log.steps_target !== null && (
-                <ThemedView style={styles.card}>
-                  <ThemedText type="subtitle">Steps</ThemedText>
-                  <ProgressRow label="Steps" logged={log.steps_logged} target={log.steps_target} unit="steps" />
-                  <ThemedText type="small">
-                    Movement points right now: {round1(todayStepPoints)} / {POINTS.movementMax}
-                  </ThemedText>
-                  <TextInput
-                    placeholder="Steps you just walked"
-                    value={stepsInput}
-                    onChangeText={setStepsInput}
-                    keyboardType="number-pad"
-                    style={styles.input}
-                    placeholderTextColor="#888"
-                  />
-                  <Pressable onPress={handleAddSteps} style={styles.addButton}>
-                    <ThemedText style={{ color: 'white' }}>Add steps</ThemedText>
-                  </Pressable>
-                </ThemedView>
-              )}
-
-              <ThemedView style={styles.card}>
-                <ThemedText type="subtitle">Food</ThemedText>
-                <ProgressRow label="Calories" logged={log.calorie_logged} target={log.calorie_target} unit="kcal" />
-                <ProgressRow label="Protein" logged={log.protein_logged} target={log.protein_target} unit="g" />
-                <ProgressRow label="Fat" logged={log.fat_logged} target={log.fat_target} unit="g" />
-                <ProgressRow label="Carbs" logged={log.carb_logged} target={log.carb_target} unit="g" />
-                <ThemedText type="small">
-                  Calorie points right now: {round1(todayCaloriePoints)} / {POINTS.calorieMax} (final score counts at the end of the day)
-                </ThemedText>
-
-                <ThemedText type="small">Add what you just ate:</ThemedText>
+              <QuestCard
+                icon={<FoodIcon />}
+                title="Calories"
+                subtitle={`${log.calorie_logged.toLocaleString()} / ${
+                  log.calorie_target?.toLocaleString() ?? '?'
+                } kcal`}
+                chipText={`${round1(todayCaloriePoints)} / ${POINTS.calorieMax}`}
+                chipStyle={todayCaloriePoints >= POINTS.calorieMax ? 'complete' : 'earning'}
+                progress={share(log.calorie_logged, log.calorie_target)}
+                actionLabel="Add food"
+                onAction={handleAddFood}
+                actionStyle="secondary"
+              >
+                <View style={styles.macroRow}>
+                  <MacroBar label="Protein" logged={log.protein_logged} target={log.protein_target} />
+                  <MacroBar label="Fat" logged={log.fat_logged} target={log.fat_target} />
+                  <MacroBar label="Carbs" logged={log.carb_logged} target={log.carb_target} />
+                </View>
+                <Text style={styles.hint}>Add what you just ate:</Text>
                 <TextInput
                   placeholder="Calories (kcal)"
                   value={foodCalories}
                   onChangeText={setFoodCalories}
                   keyboardType="decimal-pad"
                   style={styles.input}
-                  placeholderTextColor="#888"
+                  placeholderTextColor={GAME.colors.textMuted}
                 />
                 <TextInput
                   placeholder="Protein (g)"
@@ -323,7 +305,7 @@ export default function DashboardPlaceholder() {
                   onChangeText={setFoodProtein}
                   keyboardType="decimal-pad"
                   style={styles.input}
-                  placeholderTextColor="#888"
+                  placeholderTextColor={GAME.colors.textMuted}
                 />
                 <TextInput
                   placeholder="Fat (g)"
@@ -331,7 +313,7 @@ export default function DashboardPlaceholder() {
                   onChangeText={setFoodFat}
                   keyboardType="decimal-pad"
                   style={styles.input}
-                  placeholderTextColor="#888"
+                  placeholderTextColor={GAME.colors.textMuted}
                 />
                 <TextInput
                   placeholder="Carbs (g)"
@@ -339,81 +321,105 @@ export default function DashboardPlaceholder() {
                   onChangeText={setFoodCarbs}
                   keyboardType="decimal-pad"
                   style={styles.input}
-                  placeholderTextColor="#888"
+                  placeholderTextColor={GAME.colors.textMuted}
                 />
-                <Pressable onPress={handleAddFood} style={styles.addButton}>
-                  <ThemedText style={{ color: 'white' }}>Add</ThemedText>
-                </Pressable>
-              </ThemedView>
+              </QuestCard>
+
+              {log.steps_target !== null && (
+                <QuestCard
+                  icon={<StepsIcon />}
+                  title="Steps"
+                  subtitle={`${log.steps_logged.toLocaleString()} / ${log.steps_target.toLocaleString()} steps`}
+                  chipText={`${round1(todayStepPoints)} / ${POINTS.movementMax}`}
+                  chipStyle={todayStepPoints >= POINTS.movementMax ? 'complete' : 'earning'}
+                  progress={share(log.steps_logged, log.steps_target)}
+                  actionLabel="Add steps"
+                  onAction={handleAddSteps}
+                  actionStyle="secondary"
+                >
+                  <TextInput
+                    placeholder="Steps you just walked"
+                    value={stepsInput}
+                    onChangeText={setStepsInput}
+                    keyboardType="number-pad"
+                    style={styles.input}
+                    placeholderTextColor={GAME.colors.textMuted}
+                  />
+                </QuestCard>
+              )}
+
+              <QuestCard
+                icon={<WaterIcon />}
+                title="Water"
+                subtitle={`${log.water_logged_liters} / ${log.water_target_liters ?? '?'} L`}
+                chipText="Tracked"
+                chipStyle="neutral"
+                progress={share(log.water_logged_liters, log.water_target_liters)}
+                actionLabel={`+ ${LOGGING.waterStepLiters * 1000} ml`}
+                onAction={handleAddWater}
+                actionStyle="primary"
+              />
+
+              <QuestCard
+                icon={<SleepIcon color={GAME.colors.textMuted} />}
+                title="Sleep"
+                subtitle="Logging comes soon · worth 20 points"
+                dimmed
+              />
+
+              <QuestCard
+                icon={<TasksIcon color={GAME.colors.textMuted} />}
+                title="Daily tasks"
+                subtitle="Coming soon · worth 20 points"
+                dimmed
+              />
             </>
           )}
 
           {plan && (
             <>
-              <ThemedView style={styles.card}>
-                <ThemedText type="subtitle">Your Goal</ThemedText>
-                <ThemedText>
+              <Text style={styles.sectionTitle}>Your goal</Text>
+              <View style={styles.panel}>
+                <Text style={styles.panelTitle}>
                   {plan.current_weight_kg} kg → {plan.target_weight_kg ?? '?'} kg
-                </ThemedText>
+                </Text>
                 {plan.deadline_weeks && (
-                  <ThemedText type="small">
+                  <Text style={styles.hint}>
                     {plan.deadline_weeks} weeks · until {plan.end_date}
-                  </ThemedText>
+                  </Text>
                 )}
-              </ThemedView>
-
-              <ThemedView style={styles.card}>
-                <ThemedText type="subtitle">Daily Targets</ThemedText>
-                <Row label="Calories" value={plan.current_calorie_target} unit="kcal" />
-                <Row label="Protein" value={plan.protein_grams} unit="g" />
-                <Row label="Fat" value={plan.fat_grams} unit="g" />
-                <Row label="Carbs" value={plan.carb_grams} unit="g" />
-                <Row label="Water" value={plan.water_liters} unit="L" />
-                {plan.step_goal !== null && (
-                  <Row label="Steps" value={plan.step_goal} unit="steps" />
-                )}
-              </ThemedView>
+              </View>
             </>
           )}
 
-          <Pressable onPress={handleLogout} style={styles.button}>
-            <ThemedText style={{ color: 'white' }}>Log Out</ThemedText>
+          <Pressable onPress={handleLogout} style={styles.logout}>
+            <Text style={styles.logoutText}>Log Out</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 }
 
-function Row({ label, value, unit }: { label: string; value: number | null; unit: string }) {
-  return (
-    <ThemedView style={styles.rowLine}>
-      <ThemedText>{label}</ThemedText>
-      <ThemedText>
-        {value === null ? '—' : `${value.toLocaleString()} ${unit}`}
-      </ThemedText>
-    </ThemedView>
-  );
-}
-
-function ProgressRow({
+function MacroBar({
   label,
   logged,
   target,
-  unit,
 }: {
   label: string;
   logged: number;
   target: number | null;
-  unit: string;
 }) {
   return (
-    <ThemedView style={styles.rowLine}>
-      <ThemedText>{label}</ThemedText>
-      <ThemedText>
-        {logged.toLocaleString()} / {target === null ? '?' : target.toLocaleString()} {unit}
-      </ThemedText>
-    </ThemedView>
+    <View style={styles.macro}>
+      <Text style={styles.macroLabel}>{label}</Text>
+      <Text style={styles.macroValue}>
+        {logged} / {target ?? '?'} g
+      </Text>
+      <View style={styles.macroTrack}>
+        <View style={[styles.macroFill, { width: `${share(logged, target) * 100}%` }]} />
+      </View>
+    </View>
   );
 }
 
@@ -421,10 +427,45 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: GAME.colors.background },
   safeArea: { flex: 1 },
   content: { padding: GAME.spacing.screen, gap: GAME.spacing.gap },
-  eyebrow: { letterSpacing: 2, color: GAME.colors.textMuted },
-  card: { borderWidth: 1, borderColor: '#444', borderRadius: 12, padding: 16, gap: 8 },
-  rowLine: { flexDirection: 'row', justifyContent: 'space-between' },
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%', color: 'white' },
-  addButton: { backgroundColor: '#3b82f6', padding: 12, borderRadius: 8, alignItems: 'center' },
-  button: { backgroundColor: '#ef4444', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+  eyebrow: { letterSpacing: 2, color: GAME.colors.textMuted, fontSize: 12, fontWeight: '700' },
+  message: { color: GAME.colors.text, fontSize: 14 },
+  sectionTitle: { color: GAME.colors.text, fontSize: 16, fontWeight: '700', marginTop: 6 },
+  hint: { color: GAME.colors.textMuted, fontSize: 13 },
+  macroRow: { flexDirection: 'row', gap: 12 },
+  macro: { flex: 1, gap: 6 },
+  macroLabel: { color: GAME.colors.textMuted, fontSize: 12 },
+  macroValue: { color: GAME.colors.text, fontSize: 13, fontWeight: '700' },
+  macroTrack: {
+    height: 4,
+    borderRadius: GAME.radius.pill,
+    backgroundColor: GAME.colors.surfaceRaised,
+    overflow: 'hidden',
+  },
+  macroFill: { height: 4, backgroundColor: GAME.colors.primary },
+  input: {
+    borderWidth: 1,
+    borderColor: GAME.colors.border,
+    borderRadius: GAME.radius.button,
+    padding: 12,
+    width: '100%',
+    color: GAME.colors.text,
+    backgroundColor: GAME.colors.background,
+  },
+  panel: {
+    backgroundColor: GAME.colors.surface,
+    borderWidth: 1,
+    borderColor: GAME.colors.border,
+    borderRadius: GAME.radius.card,
+    padding: 16,
+    gap: 6,
+  },
+  panelTitle: { color: GAME.colors.text, fontSize: 16, fontWeight: '700' },
+  logout: {
+    backgroundColor: '#ef4444',
+    padding: 14,
+    borderRadius: GAME.radius.button,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  logoutText: { color: 'white', fontWeight: '700' },
 });
