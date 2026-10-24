@@ -25,6 +25,11 @@ export const ACTIVITY_BY_DAYS = {
 /** Session lengths offered on the Gym Setup screen (minutes). */
 export const SESSION_MINUTES_OPTIONS = [30, 45, 60, 90] as const;
 
+/** Quick-log buttons on the dashboard. */
+export const LOGGING = {
+  waterStepLiters: 0.25,
+} as const;
+
 export const WEIGHT_LOSS = {
   /** Hard fail if the deadline implies more than this % of body weight per week. */
   maxPercentPerWeek: 0.01,
