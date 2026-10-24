@@ -1,4 +1,5 @@
 export * from './constants';
+export * from './deadline';
 export * from './energy';
 export * from './macros';
 export * from './milestones';
@@ -10,3 +11,4 @@ export * from './types';
 export * from './validation';
 export * from './water';
 export * from './workout';
+

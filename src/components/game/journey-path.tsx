@@ -14,8 +14,8 @@ const LEFT = 25;
 const RIGHT = 325;
 const BOTTOM_Y = 130;
 const TOP_Y = 46;
-/** Beyond this many points, only every second label is drawn so they don't collide. */
-const MAX_LABELLED_POINTS = 8;
+/** Beyond this many points, only every second weight is drawn so they don't collide. */
+const MAX_LABELLED_POINTS = 12;
 
 function formatKg(kg: number) {
   return Number(kg.toFixed(1)).toString();
@@ -84,24 +84,22 @@ export function JourneyPath({ weightsKg, weeks }: Props) {
             </SvgText>
           ) : null,
         )}
-        {points.map((p, i) =>
-          showLabel(i) ? (
-            <SvgText
-              key={`name-${i}`}
-              x={i === count - 1 ? p.x - 3 : p.x}
-              y={158}
-              fontSize={11}
-              fill={GAME.colors.textMuted}
-              textAnchor="middle"
-            >
-              {i === 0 ? 'You' : i === count - 1 ? 'Goal' : `M${i}`}
-            </SvgText>
-          ) : null,
-        )}
+        <SvgText x={points[0]!.x} y={158} fontSize={11} fill={GAME.colors.textMuted} textAnchor="middle">
+          You
+        </SvgText>
+        <SvgText
+          x={points[count - 1]!.x - 3}
+          y={158}
+          fontSize={11}
+          fill={GAME.colors.textMuted}
+          textAnchor="middle"
+        >
+          Goal
+        </SvgText>
       </Svg>
 
       <Text style={styles.caption}>
-        At each monthly Trial, hit enough of that marker's target and you rank up. Miss it and you keep your rank.
+        Each stop on the path is a check-in. Hit enough of that stop's target and you rank up. Miss it and you keep your rank.
       </Text>
     </View>
   );

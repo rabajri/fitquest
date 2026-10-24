@@ -56,7 +56,7 @@ export const WEIGHT_LOSS = {
   /** Never go below this fraction of BMR. */
   bmrFloorMultiplier: 0.85,
   /** Later months get a smaller slice of the remaining goal. */
-  shrinkRate: 0.85,
+  shrinkRate: 0.9,
 } as const;
 
 export const MUSCLE_GAIN = {

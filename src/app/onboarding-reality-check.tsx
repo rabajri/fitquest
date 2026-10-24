@@ -1,19 +1,69 @@
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
-import { WEIGHT_LOSS, calculateWeightLossPlan, validateWeightLossDeadline } from '@/engine';
+import {
+  calculateWeightLossPlan,
+  earliestSafeDays,
+  validateWeightLossDeadline
+} from '@/engine';
+import { addDays, daysUntil, toLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 export default function OnboardingRealityCheckScreen() {
-  const [weeks, setWeeks] = useState('');
+  const [goalDate, setGoalDate] = useState<Date | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
   const [message, setMessage] = useState('');
+  const [earliestDate, setEarliestDate] = useState<Date | null>(null);
+
+  // Work out the earliest safe date as soon as the screen opens
+  useEffect(() => {
+    async function loadEarliest() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: plan } = await supabase
+        .from('user_plans')
+        .select('current_weight_kg, target_weight_kg')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!plan?.current_weight_kg || !plan?.target_weight_kg) return;
+
+      const days = earliestSafeDays({
+        currentWeightKg: plan.current_weight_kg,
+        targetWeightKg: plan.target_weight_kg,
+      });
+      setEarliestDate(addDays(new Date(), days));
+    }
+    loadEarliest();
+  }, []);
+
+  function handlePick(event: { type: string }, selected?: Date) {
+    setShowPicker(false);
+    if (event.type === 'set' && selected) {
+      setGoalDate(selected);
+      setMessage('');
+    }
+  }
 
   async function handleFinish() {
-    const weeksNumber = Number(weeks);
-    if (!weeksNumber || weeksNumber < 1) {
-      setMessage('Please enter the number of weeks (at least 1).');
+    if (!goalDate) {
+      setMessage('Please pick a date.');
+      return;
+    }
+
+    const timelineDays = daysUntil(goalDate);
+    if (timelineDays < 1) {
+      setMessage('Pick a date in the future.');
       return;
     }
 
@@ -57,17 +107,24 @@ export default function OnboardingRealityCheckScreen() {
     const result = validateWeightLossDeadline({
       currentWeightKg: plan.current_weight_kg,
       targetWeightKg: plan.target_weight_kg,
-      timelineDays: weeksNumber * 7,
+      timelineDays,
       wantsWorkout: plan.wants_workout,
     });
 
     if (!result.ok) {
-      const kgToLose = plan.current_weight_kg - plan.target_weight_kg;
-      const maxKgPerWeek = plan.current_weight_kg * WEIGHT_LOSS.maxPercentPerWeek;
-      const minWeeks = Math.ceil(kgToLose / maxKgPerWeek);
-      setMessage(`${result.message} You need at least ${minWeeks} weeks for this goal.`);
+      const safeDate = addDays(
+        new Date(),
+        earliestSafeDays({
+          currentWeightKg: plan.current_weight_kg,
+          targetWeightKg: plan.target_weight_kg,
+        }),
+      );
+      setEarliestDate(safeDate);
+      setMessage(`${result.message} The earliest safe date for this goal is ${formatDate(safeDate)}.`);
       return;
     }
+
+    const deadlineWeeks = timelineDays / 7;
 
     // All the maths lives in the engine; this screen only passes answers in
     const dailyPlan = calculateWeightLossPlan({
@@ -76,19 +133,16 @@ export default function OnboardingRealityCheckScreen() {
       heightCm: profile.height_cm,
       weightKg: plan.current_weight_kg,
       targetWeightKg: plan.target_weight_kg,
-      deadlineWeeks: weeksNumber,
+      deadlineWeeks,
       daysPerWeek: plan.wants_workout ? (plan.selected_days?.length ?? 0) : 0,
       sessionMinutes: plan.session_duration_minutes ?? 0,
     });
 
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + weeksNumber * 7);
-
     const { error: planUpdateError } = await supabase
       .from('user_plans')
       .update({
-        deadline_weeks: weeksNumber,
-        end_date: endDate.toISOString().slice(0, 10),
+        deadline_weeks: Math.ceil(deadlineWeeks),
+        end_date: toLocalDate(goalDate),
         activity_level: dailyPlan.activity,
         initial_bmr: Math.round(dailyPlan.bmr),
         initial_tdee: Math.round(dailyPlan.tdee),
@@ -122,16 +176,24 @@ export default function OnboardingRealityCheckScreen() {
   return (
     <KeyboardScreen>
       <ThemedText type="title">Reality Check</ThemedText>
-      <ThemedText>In how many weeks do you want to reach your goal?</ThemedText>
+      <ThemedText>By what date do you want to reach your goal?</ThemedText>
 
-      <TextInput
-        placeholder="Number of weeks (e.g. 12)"
-        value={weeks}
-        onChangeText={setWeeks}
-        keyboardType="number-pad"
-        style={styles.input}
-        placeholderTextColor="#888"
-      />
+      <Pressable onPress={() => setShowPicker(true)} style={styles.input}>
+        <ThemedText>{goalDate ? formatDate(goalDate) : 'Pick a date'}</ThemedText>
+      </Pressable>
+
+      {showPicker && (
+        <DateTimePicker
+          value={goalDate ?? earliestDate ?? addDays(new Date(), 1)}
+          mode="date"
+          minimumDate={addDays(new Date(), 1)}
+          onChange={handlePick}
+        />
+      )}
+
+      {earliestDate && (
+        <ThemedText>Earliest safe date for your goal: {formatDate(earliestDate)}</ThemedText>
+      )}
 
       <Pressable onPress={handleFinish} style={styles.button}>
         <ThemedText style={{ color: 'white' }}>Finish Setup</ThemedText>
@@ -143,6 +205,6 @@ export default function OnboardingRealityCheckScreen() {
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%', color: 'white' },
+  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
   button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
 });
