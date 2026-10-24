@@ -30,6 +30,24 @@ export const LOGGING = {
   waterStepLiters: 0.25,
 } as const;
 
+/** Milestones: how long one marker (one "month") lasts. */
+export const MILESTONES = {
+  daysPerMarker: 30,
+} as const;
+
+/**
+ * Monthly Trial bands. Each number is the attainment % where that band STARTS.
+ * Below veryLowFrom (negative progress) counts as regression.
+ */
+export const TRIAL_BANDS = {
+  veryLowFrom: 0,
+  lowFrom: 30,
+  holdFrom: 50,
+  rankUpFrom: 70,
+  strongRankUpFrom: 90,
+  overperformingFrom: 150,
+} as const;
+
 export const WEIGHT_LOSS = {
   /** Hard fail if the deadline implies more than this % of body weight per week. */
   maxPercentPerWeek: 0.01,

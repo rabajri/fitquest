@@ -1,4 +1,4 @@
-import { RANK_LABEL, RANK_ORDER, WAIST_CHANGE_CM, XP } from './constants';
+import { RANK_LABEL, RANK_ORDER, TRIAL_BANDS, WAIST_CHANGE_CM, XP } from './constants';
 import type { RankId, TrialBand } from './types';
 
 export function waistAdjustedGainKg(weightGainKg: number, waistChangeCm: number): number {
@@ -22,12 +22,12 @@ export function attainmentPercent(actualThisMarkerKg: number, expectedThisMarker
 }
 
 export function trialBand(attainment: number): TrialBand {
-  if (attainment < 0) return 'regression';
-  if (attainment < 30) return 'very_low';
-  if (attainment < 50) return 'low';
-  if (attainment < 70) return 'hold';
-  if (attainment < 90) return 'rank_up';
-  if (attainment < 150) return 'strong_rank_up';
+  if (attainment < TRIAL_BANDS.veryLowFrom) return 'regression';
+  if (attainment < TRIAL_BANDS.lowFrom) return 'very_low';
+  if (attainment < TRIAL_BANDS.holdFrom) return 'low';
+  if (attainment < TRIAL_BANDS.rankUpFrom) return 'hold';
+  if (attainment < TRIAL_BANDS.strongRankUpFrom) return 'rank_up';
+  if (attainment < TRIAL_BANDS.overperformingFrom) return 'strong_rank_up';
   return 'overperforming';
 }
 

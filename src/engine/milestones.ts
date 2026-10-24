@@ -1,9 +1,14 @@
-import { MUSCLE_GAIN, WEIGHT_LOSS } from './constants';
+import { MILESTONES, MUSCLE_GAIN, WEIGHT_LOSS } from './constants';
 import type { GoalType } from './types';
 
 function decayRate(goal: GoalType, monthIndex: number): number {
   const shrink = goal === 'lose_weight' ? WEIGHT_LOSS.shrinkRate : MUSCLE_GAIN.shrinkRate;
   return shrink ** (monthIndex - 1);
+}
+
+/** How many markers a plan of this length has (one per 30 days, rounded up, at least 1). */
+export function markerCount(totalDays: number): number {
+  return Math.max(1, Math.ceil(totalDays / MILESTONES.daysPerMarker));
 }
 
 /** How many kg this marker "owns" (used to build the cumulative path). */
@@ -35,4 +40,24 @@ export function buildMarkerPath(input: {
 }): { monthlyKg: number[]; cumulativeKg: number[] } {
   const monthlyKg = monthlyKgTargets(input);
   return { monthlyKg, cumulativeKg: cumulativeMarkers(monthlyKg) };
+}
+
+/**
+ * The weights shown on the journey path: where you start, then where you should be
+ * at the end of each marker. The last number is your goal.
+ */
+export function weightPath(input: {
+  goal: GoalType;
+  startKg: number;
+  targetKg: number;
+  totalDays: number;
+}): number[] {
+  const totalKgDelta = Math.abs(input.startKg - input.targetKg);
+  const { cumulativeKg } = buildMarkerPath({
+    goal: input.goal,
+    totalKgDelta,
+    monthCount: markerCount(input.totalDays),
+  });
+  const direction = input.goal === 'lose_weight' ? -1 : 1;
+  return [input.startKg, ...cumulativeKg.map((kg) => input.startKg + direction * kg)];
 }

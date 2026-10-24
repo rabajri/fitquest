@@ -1,3 +1,4 @@
+import { JourneyPath } from '@/components/game/journey-path';
 import { QuestCard } from '@/components/game/quest-card';
 import { FoodIcon, SleepIcon, StepsIcon, TasksIcon, WaterIcon } from '@/components/game/quest-icons';
 import { RankCard } from '@/components/game/rank-card';
@@ -11,6 +12,7 @@ import {
   levelFromXp,
   movementPoints,
   rankLabel,
+  weightPath,
 } from '@/engine';
 import { todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
@@ -247,6 +249,17 @@ export default function DashboardPlaceholder() {
   // XP and rank are not tracked yet: everyone is a Recruit with 0 XP for now
   const levelInfo = levelFromXp(0);
 
+  // The weights drawn on the journey path (from the engine)
+  const journeyWeights =
+    plan && plan.target_weight_kg && plan.deadline_weeks
+      ? weightPath({
+          goal: 'lose_weight',
+          startKg: plan.current_weight_kg,
+          targetKg: plan.target_weight_kg,
+          totalDays: plan.deadline_weeks * 7,
+        })
+      : null;
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -376,19 +389,10 @@ export default function DashboardPlaceholder() {
             </>
           )}
 
-          {plan && (
+          {plan && journeyWeights && (
             <>
-              <Text style={styles.sectionTitle}>Your goal</Text>
-              <View style={styles.panel}>
-                <Text style={styles.panelTitle}>
-                  {plan.current_weight_kg} kg → {plan.target_weight_kg ?? '?'} kg
-                </Text>
-                {plan.deadline_weeks && (
-                  <Text style={styles.hint}>
-                    {plan.deadline_weeks} weeks · until {plan.end_date}
-                  </Text>
-                )}
-              </View>
+              <Text style={styles.sectionTitle}>Your journey</Text>
+              <JourneyPath weightsKg={journeyWeights} weeks={plan.deadline_weeks} />
             </>
           )}
 
@@ -451,15 +455,6 @@ const styles = StyleSheet.create({
     color: GAME.colors.text,
     backgroundColor: GAME.colors.background,
   },
-  panel: {
-    backgroundColor: GAME.colors.surface,
-    borderWidth: 1,
-    borderColor: GAME.colors.border,
-    borderRadius: GAME.radius.card,
-    padding: 16,
-    gap: 6,
-  },
-  panelTitle: { color: GAME.colors.text, fontSize: 16, fontWeight: '700' },
   logout: {
     backgroundColor: '#ef4444',
     padding: 14,
