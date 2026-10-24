@@ -1,6 +1,6 @@
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
-import { checkLossPace } from '@/lib/pace';
+import { WEIGHT_LOSS, validateWeightLossDeadline } from '@/engine';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -27,7 +27,7 @@ export default function OnboardingRealityCheckScreen() {
 
     const { data: plan, error: planError } = await supabase
       .from('user_plans')
-      .select('id, goal_type, current_weight_kg, target_weight_kg')
+      .select('id, goal_type, current_weight_kg, target_weight_kg, wants_workout')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -39,11 +39,18 @@ export default function OnboardingRealityCheckScreen() {
     }
 
     if (plan.goal_type === 'lose_weight' && plan.target_weight_kg) {
-      const result = checkLossPace(plan.current_weight_kg, plan.target_weight_kg, weeksNumber);
+      const result = validateWeightLossDeadline({
+        currentWeightKg: plan.current_weight_kg,
+        targetWeightKg: plan.target_weight_kg,
+        timelineDays: weeksNumber * 7,
+        wantsWorkout: plan.wants_workout,
+      });
+
       if (!result.ok) {
-        setMessage(
-          `That pace is too fast (${result.kgPerWeek} kg/week, above the safe limit of 1% of body weight per week). Please choose at least ${result.minWeeks} weeks.`
-        );
+        const kgToLose = plan.current_weight_kg - plan.target_weight_kg;
+        const maxKgPerWeek = plan.current_weight_kg * WEIGHT_LOSS.maxPercentPerWeek;
+        const minWeeks = Math.ceil(kgToLose / maxKgPerWeek);
+        setMessage(`${result.message} You need at least ${minWeeks} weeks for this goal.`);
         return;
       }
     }
