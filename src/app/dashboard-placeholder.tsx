@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { LOGGING } from '@/engine';
+import { LOGGING, POINTS, caloriePoints } from '@/engine';
 import { todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { router, useFocusEffect } from 'expo-router';
@@ -191,6 +191,10 @@ export default function DashboardPlaceholder() {
     router.replace('/login');
   }
 
+  // Live preview of today's calorie points (all the maths is in the engine)
+  const todayCaloriePoints =
+    log && log.calorie_target ? caloriePoints(log.calorie_logged, log.calorie_target) : 0;
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -219,6 +223,9 @@ export default function DashboardPlaceholder() {
                 <ProgressRow label="Protein" logged={log.protein_logged} target={log.protein_target} unit="g" />
                 <ProgressRow label="Fat" logged={log.fat_logged} target={log.fat_target} unit="g" />
                 <ProgressRow label="Carbs" logged={log.carb_logged} target={log.carb_target} unit="g" />
+                <ThemedText type="small">
+                  Calorie points right now: {round1(todayCaloriePoints)} / {POINTS.calorieMax} (final score counts at the end of the day)
+                </ThemedText>
 
                 <ThemedText type="small">Add what you just ate:</ThemedText>
                 <TextInput
