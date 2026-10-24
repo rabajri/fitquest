@@ -115,6 +115,10 @@ export const POINTS = {
   taskMax: 20,
   sleepMax: 20,
   loggingMax: 5,
+  /** Logging score tiers: share of required logs done → points. */
+  loggingMostShare: 0.75,
+  loggingMostPoints: 3,
+  loggingSomePoints: 1,
   streakPerDay: 0.5,
   streakCapDays: 30,
   goodDayBase: 56,

@@ -3,6 +3,7 @@ export * from './energy';
 export * from './macros';
 export * from './milestones';
 export * from './plan';
+export * from './points';
 export * from './steps';
 export * from './trial';
 export * from './types';
