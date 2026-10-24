@@ -15,10 +15,10 @@ export function leanMassKg(weightKg: number, bodyFatPercent: number): number {
   return weightKg * (1 - bodyFatPercent / 100);
 }
 
-/** Cumulative actual vs cumulative expected. */
-export function attainmentPercent(actualCumulativeKg: number, expectedCumulativeKg: number): number {
-  if (expectedCumulativeKg === 0) return 0;
-  return (actualCumulativeKg / expectedCumulativeKg) * 100;
+/** This marker's actual progress vs this marker's own target (not cumulative). */
+export function attainmentPercent(actualThisMarkerKg: number, expectedThisMarkerKg: number): number {
+  if (expectedThisMarkerKg === 0) return 0;
+  return (actualThisMarkerKg / expectedThisMarkerKg) * 100;
 }
 
 export function trialBand(attainment: number): TrialBand {

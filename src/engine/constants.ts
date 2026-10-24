@@ -5,8 +5,8 @@
 
 import type { ActivityLevel, ExperienceLevel, RankId } from './types';
 
-/** Rank scoring uses total progress vs the marker path, not this-month-only. */
-export const RANK_USES_CUMULATIVE_PROGRESS = true;
+/** Rank scoring uses each marker's own attainment. The cumulative path is visual only. */
+export const RANK_USES_CUMULATIVE_PROGRESS = false;
 
 export const KCAL_PER_KG = 7700;
 

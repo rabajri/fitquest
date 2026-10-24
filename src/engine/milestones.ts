@@ -19,7 +19,7 @@ export function monthlyKgTargets(input: {
   return weights.map((w) => (w / sum) * input.totalKgDelta);
 }
 
-/** Marker n = total expected progress by the end of month n. Rank uses this. */
+/** Marker n = total expected progress by the end of month n. Visual path only; rank does NOT use this. */
 export function cumulativeMarkers(monthlyTargets: number[]): number[] {
   const out: number[] = [];
   monthlyTargets.forEach((kg, i) => {

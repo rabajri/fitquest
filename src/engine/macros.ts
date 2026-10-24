@@ -23,12 +23,14 @@ export function proteinGrams(input: {
 
 export function fatAndCarbGrams(input: {
   dailyCalorieTarget: number;
+  tdee: number;
   proteinGrams: number;
   weightKg: number;
 }): { fatGrams: number; carbGrams: number } {
   const proteinKcal = input.proteinGrams * 4;
+  // Fat is based on TDEE (not the reduced target), with a per-kg minimum
   const fatGrams = Math.max(
-    (input.dailyCalorieTarget * FAT.tdeeFraction) / 9,
+    (input.tdee * FAT.tdeeFraction) / 9,
     input.weightKg * FAT.minGramsPerKg,
   );
   const fatKcal = fatGrams * 9;
