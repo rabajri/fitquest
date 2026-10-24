@@ -1,6 +1,6 @@
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
-import { WEIGHT_LOSS, validateWeightLossDeadline } from '@/engine';
+import { WEIGHT_LOSS, calculateWeightLossPlan, validateWeightLossDeadline } from '@/engine';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -27,7 +27,7 @@ export default function OnboardingRealityCheckScreen() {
 
     const { data: plan, error: planError } = await supabase
       .from('user_plans')
-      .select('id, goal_type, current_weight_kg, target_weight_kg, wants_workout')
+      .select('id, goal_type, current_weight_kg, target_weight_kg, wants_workout, selected_days, session_duration_minutes')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -38,22 +38,48 @@ export default function OnboardingRealityCheckScreen() {
       return;
     }
 
-    if (plan.goal_type === 'lose_weight' && plan.target_weight_kg) {
-      const result = validateWeightLossDeadline({
-        currentWeightKg: plan.current_weight_kg,
-        targetWeightKg: plan.target_weight_kg,
-        timelineDays: weeksNumber * 7,
-        wantsWorkout: plan.wants_workout,
-      });
+    const { data: profile, error: profileLoadError } = await supabase
+      .from('user_profiles')
+      .select('age, gender, height_cm')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-      if (!result.ok) {
-        const kgToLose = plan.current_weight_kg - plan.target_weight_kg;
-        const maxKgPerWeek = plan.current_weight_kg * WEIGHT_LOSS.maxPercentPerWeek;
-        const minWeeks = Math.ceil(kgToLose / maxKgPerWeek);
-        setMessage(`${result.message} You need at least ${minWeeks} weeks for this goal.`);
-        return;
-      }
+    if (profileLoadError || !profile) {
+      setMessage(`Could not load your profile: ${profileLoadError?.message ?? 'no profile found'}`);
+      return;
     }
+
+    if (!plan.target_weight_kg) {
+      setMessage('No target weight found. Go back to Your Goal and enter one.');
+      return;
+    }
+
+    const result = validateWeightLossDeadline({
+      currentWeightKg: plan.current_weight_kg,
+      targetWeightKg: plan.target_weight_kg,
+      timelineDays: weeksNumber * 7,
+      wantsWorkout: plan.wants_workout,
+    });
+
+    if (!result.ok) {
+      const kgToLose = plan.current_weight_kg - plan.target_weight_kg;
+      const maxKgPerWeek = plan.current_weight_kg * WEIGHT_LOSS.maxPercentPerWeek;
+      const minWeeks = Math.ceil(kgToLose / maxKgPerWeek);
+      setMessage(`${result.message} You need at least ${minWeeks} weeks for this goal.`);
+      return;
+    }
+
+    // All the maths lives in the engine; this screen only passes answers in
+    const dailyPlan = calculateWeightLossPlan({
+      sex: profile.gender,
+      ageYears: profile.age,
+      heightCm: profile.height_cm,
+      weightKg: plan.current_weight_kg,
+      targetWeightKg: plan.target_weight_kg,
+      deadlineWeeks: weeksNumber,
+      daysPerWeek: plan.wants_workout ? (plan.selected_days?.length ?? 0) : 0,
+      sessionMinutes: plan.session_duration_minutes ?? 0,
+    });
 
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + weeksNumber * 7);
@@ -63,6 +89,15 @@ export default function OnboardingRealityCheckScreen() {
       .update({
         deadline_weeks: weeksNumber,
         end_date: endDate.toISOString().slice(0, 10),
+        activity_level: dailyPlan.activity,
+        initial_bmr: Math.round(dailyPlan.bmr),
+        initial_tdee: Math.round(dailyPlan.tdee),
+        current_calorie_target: Math.round(dailyPlan.dailyCalorieTarget),
+        protein_grams: Math.round(dailyPlan.proteinGrams),
+        fat_grams: Math.round(dailyPlan.fatGrams),
+        carb_grams: Math.round(dailyPlan.carbGrams),
+        water_liters: Math.round(dailyPlan.waterLiters * 10) / 10,
+        step_goal: dailyPlan.stepGoal === null ? null : Math.round(dailyPlan.stepGoal),
       })
       .eq('id', plan.id);
 

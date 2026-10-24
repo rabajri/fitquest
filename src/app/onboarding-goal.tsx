@@ -59,6 +59,10 @@ export default function OnboardingGoalScreen() {
       setMessage('Please select a goal and enter your current weight.');
       return;
     }
+    if (goal === 'lose_weight' && !targetWeight) {
+      setMessage('Please enter your target weight.');
+      return;
+    }
     if (goal === 'lose_weight' && wantsWorkout === null) {
       setMessage('Please let us know if you want to work out.');
       return;
@@ -120,7 +124,8 @@ export default function OnboardingGoalScreen() {
       return;
     }
 
-    router.replace(finalWantsWorkout ? '/onboarding-gym-setup' : '/dashboard-placeholder');
+    // Everyone ends at Reality Check, where the plan is calculated
+    router.replace(finalWantsWorkout ? '/onboarding-gym-setup' : '/onboarding-reality-check');
   }
 
   return (

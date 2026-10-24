@@ -1,6 +1,7 @@
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SESSION_MINUTES_OPTIONS } from '@/engine';
 import { getRecoveryWarnings } from '@/lib/recovery';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
@@ -21,6 +22,7 @@ export default function OnboardingGymSetupScreen() {
   const [newDumbbellWeight, setNewDumbbellWeight] = useState('');
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [sessionMinutes, setSessionMinutes] = useState<number | null>(null);
   const [message, setMessage] = useState('');
 
   function toggleEquipment(item: string) {
@@ -71,6 +73,10 @@ export default function OnboardingGymSetupScreen() {
       setMessage('Please select at least one training day.');
       return;
     }
+    if (sessionMinutes === null) {
+      setMessage('Please choose how long each session lasts.');
+      return;
+    }
     if (hasDumbbells && dumbbellWeights.length === 0) {
       setMessage('Please add at least one dumbbell weight, or deselect Dumbbells.');
       return;
@@ -95,6 +101,7 @@ export default function OnboardingGymSetupScreen() {
         dumbbell_weights_kg: hasDumbbells ? dumbbellWeights : null,
         machine_types: hasMachines ? machineTypes : null,
         selected_days: selectedDays,
+        session_duration_minutes: sessionMinutes,
       })
       .eq('user_id', user.id);
 
@@ -205,6 +212,19 @@ export default function OnboardingGymSetupScreen() {
           <ThemedText type="small" style={{ color: '#fbbf24' }}>⚠️ {w}</ThemedText>
         </ThemedView>
       ))}
+
+      <ThemedText>Session Length (minutes)</ThemedText>
+      <ThemedView style={styles.wrapRow}>
+        {SESSION_MINUTES_OPTIONS.map((minutes) => (
+          <Pressable
+            key={minutes}
+            onPress={() => setSessionMinutes(minutes)}
+            style={[styles.pill, sessionMinutes === minutes && styles.pillActive]}
+          >
+            <ThemedText>{minutes}</ThemedText>
+          </Pressable>
+        ))}
+      </ThemedView>
 
       <Pressable onPress={handleContinue} style={styles.button}>
         <ThemedText style={{ color: 'white' }}>Continue</ThemedText>
