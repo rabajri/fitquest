@@ -6,8 +6,8 @@ import { ScoreRing } from '@/components/game/score-ring';
 import { StreakRow } from '@/components/game/streak-row';
 import { GAME } from '@/constants/game-theme';
 import {
-  DAILY_POINTS_MAX,
   LOGGING,
+  PERFECT_DAY_POINTS,
   POINTS,
   type StreakDay,
   calculateStreak,
@@ -327,8 +327,9 @@ export default function DashboardPlaceholder() {
               />
 
               <ScoreRing
-                points={todayTotalPoints}
-                maxPoints={DAILY_POINTS_MAX}
+                points={todayTotalPoints + todayLoggingBonus + todayStreakBonus}
+                maxPoints={PERFECT_DAY_POINTS}
+                questPoints={todayTotalPoints}
                 goodDayAt={POINTS.goodDayBase}
               />
 

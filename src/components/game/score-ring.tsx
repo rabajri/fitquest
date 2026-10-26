@@ -1,11 +1,15 @@
 import { GAME } from '@/constants/game-theme';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Line } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 
 type Props = {
+  /** Everything earned today: quests plus the logging and streak bonuses. */
   points: number;
+  /** The most a perfect day can earn. */
   maxPoints: number;
-  /** Points needed for the day to count as a good day (shown as a tick). */
+  /** Points earned from the daily quests alone (calories, movement, ...). */
+  questPoints: number;
+  /** Quest points needed for the day to count as a good day. */
   goodDayAt: number;
 };
 
@@ -13,9 +17,9 @@ const SIZE = 190;
 const RADIUS = 78;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export function ScoreRing({ points, maxPoints, goodDayAt }: Props) {
+export function ScoreRing({ points, maxPoints, questPoints, goodDayAt }: Props) {
   const share = maxPoints > 0 ? Math.min(points / maxPoints, 1) : 0;
-  const tickDegrees = maxPoints > 0 ? (goodDayAt / maxPoints) * 360 : 0;
+  const isGoodDay = questPoints >= goodDayAt;
 
   return (
     <View style={styles.card}>
@@ -41,17 +45,6 @@ export function ScoreRing({ points, maxPoints, goodDayAt }: Props) {
             rotation={-90}
             origin="100, 100"
           />
-          <Line
-            x1={100}
-            y1={12}
-            x2={100}
-            y2={34}
-            stroke={GAME.colors.text}
-            strokeWidth={3}
-            strokeLinecap="round"
-            rotation={tickDegrees}
-            origin="100, 100"
-          />
         </Svg>
         <View style={styles.center}>
           <Text style={styles.number}>{Math.round(points)}</Text>
@@ -59,7 +52,9 @@ export function ScoreRing({ points, maxPoints, goodDayAt }: Props) {
         </View>
       </View>
       <Text style={styles.caption}>
-        The white tick is {goodDayAt}. Cross it and today counts as a good day.
+        {isGoodDay
+          ? 'Good day! Your quests are past the mark.'
+          : `Good day = ${goodDayAt} points from your quests. You have ${Math.round(questPoints)}.`}
       </Text>
     </View>
   );
