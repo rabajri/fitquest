@@ -3,15 +3,21 @@ import { QuestCard } from '@/components/game/quest-card';
 import { FoodIcon, SleepIcon, StepsIcon, TasksIcon, WaterIcon } from '@/components/game/quest-icons';
 import { RankCard } from '@/components/game/rank-card';
 import { ScoreRing } from '@/components/game/score-ring';
+import { StreakRow } from '@/components/game/streak-row';
 import { GAME } from '@/constants/game-theme';
 import {
   DAILY_POINTS_MAX,
   LOGGING,
   POINTS,
+  type StreakDay,
+  calculateStreak,
   caloriePoints,
   levelFromXp,
+  loggedItemCount,
+  loggingPoints,
   movementPoints,
   rankLabel,
+  streakPoints,
   weightPath,
 } from '@/engine';
 import { todayLocalDate } from '@/lib/dates';
@@ -49,10 +55,11 @@ type TodayLog = {
   water_logged_liters: number;
   steps_target: number | null;
   steps_logged: number;
+  meals_logged: number;
 };
 
 const LOG_COLUMNS =
-  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged';
+  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged, meals_logged';
 
 function round1(n: number) {
   return Math.round(n * 10) / 10;
@@ -73,6 +80,9 @@ export default function DashboardPlaceholder() {
   const [foodFat, setFoodFat] = useState('');
   const [foodCarbs, setFoodCarbs] = useState('');
   const [stepsInput, setStepsInput] = useState('');
+
+  // Earlier days, used to work out the streak (today is added live below)
+  const [history, setHistory] = useState<StreakDay[]>([]);
 
   // Reload every time the dashboard appears
   useFocusEffect(
@@ -144,6 +154,27 @@ export default function DashboardPlaceholder() {
         }
 
         setLog(todayLog);
+
+        // Earlier days, for the streak. A day with no row counts as nothing logged.
+        const { data: pastRows } = await supabase
+          .from('daily_logs')
+          .select('log_date, meals_logged, water_logged_liters, water_target_liters, steps_logged')
+          .eq('user_id', user.id)
+          .lt('log_date', today)
+          .order('log_date', { ascending: true });
+
+        setHistory(
+          (pastRows ?? []).map((row) => ({
+            date: row.log_date,
+            itemsLogged: loggedItemCount({
+              mealsLogged: row.meals_logged,
+              waterLiters: row.water_logged_liters,
+              waterTargetLiters: row.water_target_liters,
+              steps: row.steps_logged,
+            }),
+          }))
+        );
+
         setMessage('');
       }
 
@@ -190,6 +221,7 @@ export default function DashboardPlaceholder() {
       protein_logged: round1(log.protein_logged + protein),
       fat_logged: round1(log.fat_logged + fat),
       carb_logged: round1(log.carb_logged + carbs),
+      meals_logged: log.meals_logged + 1,
     };
 
     const { error } = await supabase.from('daily_logs').update(next).eq('id', log.id);
@@ -246,6 +278,23 @@ export default function DashboardPlaceholder() {
   // Sleep and tasks are not tracked yet, so they count as 0 for now
   const todayTotalPoints = todayCaloriePoints + todayStepPoints;
 
+  // Logging bonus and streak (rules live in the engine). Sleep and mood are not tracked yet.
+  const itemsLoggedToday = log
+    ? loggedItemCount({
+        mealsLogged: log.meals_logged,
+        waterLiters: log.water_logged_liters,
+        waterTargetLiters: log.water_target_liters,
+        steps: log.steps_logged,
+      })
+    : 0;
+  const todayLoggingBonus = loggingPoints(itemsLoggedToday);
+  const today = todayLocalDate();
+  const streakInfo = calculateStreak(
+    [...history, { date: today, itemsLogged: itemsLoggedToday }],
+    today
+  );
+  const todayStreakBonus = streakPoints(streakInfo.streakDays);
+
   // XP and rank are not tracked yet: everyone is a Recruit with 0 XP for now
   const levelInfo = levelFromXp(0);
 
@@ -281,6 +330,15 @@ export default function DashboardPlaceholder() {
                 points={todayTotalPoints}
                 maxPoints={DAILY_POINTS_MAX}
                 goodDayAt={POINTS.goodDayBase}
+              />
+
+              <StreakRow
+                loggingPoints={todayLoggingBonus}
+                loggingMax={POINTS.loggingMax}
+                streakDays={streakInfo.streakDays}
+                streakBonus={todayStreakBonus}
+                streakBonusMax={POINTS.streakCapPoints}
+                atRisk={streakInfo.atRisk}
               />
 
               <Text style={styles.sectionTitle}>Daily quests</Text>

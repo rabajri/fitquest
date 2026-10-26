@@ -27,7 +27,12 @@ export const SESSION_MINUTES_OPTIONS = [30, 45, 60, 90] as const;
 
 /** Quick-log buttons on the dashboard. */
 export const LOGGING = {
+  /** How much one water tap adds, in liters. */
   waterStepLiters: 0.25,
+  /** Food entries that count toward the logging bonus each day. */
+  maxMealsCounted: 5,
+  /** Water counts as logged once this share of the daily target is drunk. */
+  waterCountsAtShare: 0.5,
 } as const;
 
 /** Milestones: how long one marker (one "month") lasts. */
@@ -132,16 +137,24 @@ export const POINTS = {
   movementMax: 20,
   taskMax: 20,
   sleepMax: 20,
-  loggingMax: 5,
-  /** Logging score tiers: share of required logs done → points. */
-  loggingMostShare: 0.75,
-  loggingMostPoints: 3,
-  loggingSomePoints: 1,
-  streakPerDay: 0.5,
-  streakCapDays: 30,
+  /** Logging bonus: points per item logged, up to a daily maximum. */
+  loggingPerItem: 1,
+  loggingMax: 9,
+  /** Streak bonus: equals the streak day count, up to this many points. */
+  streakCapPoints: 30,
   goodDayBase: 56,
+  /** Closeness scoring (calories, sleep): full marks within closeBand, then 1 point lost per extra 1%
+   *  down to steepBand, then a gentle taper to 0 at zeroBand. */
   closeBand: 0.1,
-  zeroBand: 0.25,
+  steepBand: 0.25,
+  zeroBand: 0.4,
+} as const;
+
+/** Streak rules. A streak day needs at least minItemsPerDay logged items. */
+export const STREAK = {
+  minItemsPerDay: 2,
+  freeMissWindowDays: 7,
+  freeMissesPerWindow: 1,
 } as const;
 
 export const RANK_ORDER: RankId[] = [

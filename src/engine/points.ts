@@ -2,24 +2,33 @@ import { POINTS } from './constants';
 
 /**
  * Points for being CLOSE to a target (calories, sleep).
- * Within 10% off → full marks. Between 10% and 25% off → loses 1 point per extra 1%.
- * More than 25% off → 0. (Open question from the spec: this is a hard cliff from 5 to 0.)
+ * - Within closeBand (10%) of target: full marks.
+ * - Then 1 point lost per extra 1%, down to steepBand (25%).
+ * - Then a gentle taper to 0 at zeroBand (40%). No cliff.
+ * Over or under the target counts the same.
  *
- * Example: target 2300, ate 2000 → 13% off → 20 - (13 - 10) = 17 points.
+ * Example: target 1550, ate 1300 → 16% off → 20 - 6 = 14 points.
  */
 export function closenessPoints(actual: number, target: number, maxPoints: number): number {
   if (target <= 0) return 0;
   const off = Math.abs(actual - target) / target;
   if (off <= POINTS.closeBand) return maxPoints;
-  if (off <= POINTS.zeroBand) return Math.max(maxPoints - (off - POINTS.closeBand) * 100, 0);
+
+  const valueAtSteep = Math.max(maxPoints - (POINTS.steepBand - POINTS.closeBand) * 100, 0);
+  if (off <= POINTS.steepBand) {
+    return Math.max(maxPoints - (off - POINTS.closeBand) * 100, 0);
+  }
+  if (off < POINTS.zeroBand) {
+    return (valueAtSteep * (POINTS.zeroBand - off)) / (POINTS.zeroBand - POINTS.steepBand);
+  }
   return 0;
 }
 
 /**
- * Points for finishing a share of a plan (workout minutes, steps, tasks).
+ * Points for finishing a share of a plan (workout exercises, steps, tasks).
  * Capped at full marks so nobody can farm points by overdoing it.
  *
- * Example: planned 40 min, did 20 → 10 points.
+ * Example: planned 10 exercises, did 5 → 10 points.
  */
 export function ratioPoints(done: number, planned: number, maxPoints: number): number {
   if (planned <= 0) return 0;
@@ -42,14 +51,20 @@ export function taskPoints(tasksDone: number, tasksTotal: number): number {
   return ratioPoints(tasksDone, tasksTotal, POINTS.taskMax);
 }
 
-/** Share of today's required logs that are done, from 0 to 1. */
-export function loggingPoints(completedShare: number): number {
-  if (completedShare >= 1) return POINTS.loggingMax;
-  if (completedShare >= POINTS.loggingMostShare) return POINTS.loggingMostPoints;
-  if (completedShare > 0) return POINTS.loggingSomePoints;
-  return 0;
+/** Logging bonus: 1 point per item logged today, up to the daily maximum. */
+export function loggingPoints(itemsLogged: number): number {
+  return Math.min(Math.max(itemsLogged, 0) * POINTS.loggingPerItem, POINTS.loggingMax);
 }
 
-/** Maximum points available from the four daily scores. */
+/** Streak bonus: the streak day count, up to the cap. The streak itself has no limit. */
+export function streakPoints(streakDays: number): number {
+  return Math.min(Math.max(streakDays, 0), POINTS.streakCapPoints);
+}
+
+/** Maximum points from the four daily scores. */
 export const DAILY_POINTS_MAX =
   POINTS.calorieMax + POINTS.movementMax + POINTS.taskMax + POINTS.sleepMax;
+
+/** A perfect day: the four scores plus the logging and streak bonuses. */
+export const PERFECT_DAY_POINTS =
+  DAILY_POINTS_MAX + POINTS.loggingMax + POINTS.streakCapPoints;
