@@ -19,6 +19,7 @@ import {
   movementPoints,
   rankLabel,
   streakPoints,
+  waterFullBonusItems,
   weightPath,
 } from '@/engine';
 import { todayLocalDate } from '@/lib/dates';
@@ -295,15 +296,20 @@ export default function DashboardPlaceholder() {
   const todayTotalPoints = todayFoodPoints + todayStepPoints;
 
   // Logging bonus and streak (rules live in the engine). Sleep and mood are not tracked yet.
-  const itemsLoggedToday = log
-    ? loggedItemCount({
+  const loggedToday = log
+    ? {
         mealsLogged: log.meals_logged,
         waterLiters: log.water_logged_liters,
         waterTargetLiters: log.water_target_liters,
         steps: log.steps_logged,
-      })
-    : 0;
-  const todayLoggingBonus = loggingPoints(itemsLoggedToday);
+      }
+    : null;
+  const itemsLoggedToday = loggedToday ? loggedItemCount(loggedToday) : 0;
+  // Finishing the water target earns one extra bonus point, but it doesn't count toward the streak
+  const todayLoggingBonus = loggingPoints(
+    itemsLoggedToday,
+    loggedToday ? waterFullBonusItems(loggedToday) : 0
+  );
   const today = todayLocalDate();
   const streakInfo = calculateStreak(
     [...history, { date: today, itemsLogged: itemsLoggedToday }],

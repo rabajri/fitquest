@@ -30,3 +30,14 @@ export function loggedItemCount(log: LoggedToday): number {
   const others = [waterDone, log.steps > 0, (log.sleepHours ?? 0) > 0, (log.mood ?? 0) > 0];
   return meals + others.filter(Boolean).length;
 }
+
+/**
+ * Extra logging item for finishing the water target (0 or 1).
+ * It only adds to the logging bonus. It does NOT count toward the streak,
+ * so water alone can't keep a streak alive.
+ */
+export function waterFullBonusItems(log: LoggedToday): number {
+  const hasWaterTarget = log.waterTargetLiters !== null && log.waterTargetLiters > 0;
+  if (!hasWaterTarget) return 0;
+  return log.waterLiters >= (log.waterTargetLiters as number) * LOGGING.waterFullShare ? 1 : 0;
+}

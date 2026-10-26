@@ -51,9 +51,13 @@ export function taskPoints(tasksDone: number, tasksTotal: number): number {
   return ratioPoints(tasksDone, tasksTotal, POINTS.taskMax);
 }
 
-/** Logging bonus: 1 point per item logged today, up to the daily maximum. */
-export function loggingPoints(itemsLogged: number): number {
-  return Math.min(Math.max(itemsLogged, 0) * POINTS.loggingPerItem, POINTS.loggingMax);
+/**
+ * Logging bonus: 1 point per item logged today, up to the daily maximum.
+ * bonusItems are extra items that count for points but not for the streak (full water).
+ */
+export function loggingPoints(itemsLogged: number, bonusItems = 0): number {
+  const items = Math.max(itemsLogged, 0) + Math.max(bonusItems, 0);
+  return Math.min(items * POINTS.loggingPerItem, POINTS.loggingMax);
 }
 
 /** Streak bonus: the streak day count, up to the cap. The streak itself has no limit. */
