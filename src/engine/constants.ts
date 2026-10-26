@@ -187,4 +187,12 @@ export const XP = {
     veryLow: 0,
     regression: 0,
   },
+} as const
+
+/** How the food quest's 20 points are split. These must add up to POINTS.calorieMax. */
+export const FOOD_POINTS = {
+  calories: 10,
+  protein: 6,
+  fat: 2,
+  carbs: 2,
 } as const;

@@ -1,6 +1,7 @@
 export * from './constants';
 export * from './deadline';
 export * from './energy';
+export * from './food-points';
 export * from './logging';
 export * from './macros';
 export * from './milestones';

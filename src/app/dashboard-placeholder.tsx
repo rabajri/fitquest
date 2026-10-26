@@ -6,12 +6,13 @@ import { ScoreRing } from '@/components/game/score-ring';
 import { StreakRow } from '@/components/game/streak-row';
 import { GAME } from '@/constants/game-theme';
 import {
+  FOOD_POINTS,
   LOGGING,
   PERFECT_DAY_POINTS,
   POINTS,
   type StreakDay,
   calculateStreak,
-  caloriePoints,
+  foodPoints,
   levelFromXp,
   loggedItemCount,
   loggingPoints,
@@ -23,7 +24,7 @@ import {
 import { todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -56,10 +57,11 @@ type TodayLog = {
   steps_target: number | null;
   steps_logged: number;
   meals_logged: number;
+  points_earned: number;
 };
 
 const LOG_COLUMNS =
-  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged, meals_logged';
+  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged, meals_logged, points_earned';
 
 function round1(n: number) {
   return Math.round(n * 10) / 10;
@@ -83,6 +85,10 @@ export default function DashboardPlaceholder() {
 
   // Earlier days, used to work out the streak (today is added live below)
   const [history, setHistory] = useState<StreakDay[]>([]);
+
+  // XP from earlier days (the sum of their points), and the points already saved for today
+  const [pastXp, setPastXp] = useState(0);
+  const [savedPoints, setSavedPoints] = useState(0);
 
   // Reload every time the dashboard appears
   useFocusEffect(
@@ -154,14 +160,17 @@ export default function DashboardPlaceholder() {
         }
 
         setLog(todayLog);
+        setSavedPoints(Number(todayLog.points_earned));
 
-        // Earlier days, for the streak. A day with no row counts as nothing logged.
+        // Earlier days, for the streak and XP. A day with no row counts as nothing logged.
         const { data: pastRows } = await supabase
           .from('daily_logs')
-          .select('log_date, meals_logged, water_logged_liters, water_target_liters, steps_logged')
+          .select('log_date, meals_logged, water_logged_liters, water_target_liters, steps_logged, points_earned')
           .eq('user_id', user.id)
           .lt('log_date', today)
           .order('log_date', { ascending: true });
+
+        setPastXp((pastRows ?? []).reduce((sum, row) => sum + Number(row.points_earned), 0));
 
         setHistory(
           (pastRows ?? []).map((row) => ({
@@ -271,12 +280,19 @@ export default function DashboardPlaceholder() {
   }
 
   // Live preview of today's points (all the maths is in the engine)
-  const todayCaloriePoints =
-    log && log.calorie_target ? caloriePoints(log.calorie_logged, log.calorie_target) : 0;
+  const food = log
+    ? foodPoints({
+        calories: { logged: log.calorie_logged, target: log.calorie_target },
+        protein: { logged: log.protein_logged, target: log.protein_target },
+        fat: { logged: log.fat_logged, target: log.fat_target },
+        carbs: { logged: log.carb_logged, target: log.carb_target },
+      })
+    : null;
+  const todayFoodPoints = food?.total ?? 0;
   const todayStepPoints =
     log && log.steps_target ? movementPoints(log.steps_logged, log.steps_target) : 0;
   // Sleep and tasks are not tracked yet, so they count as 0 for now
-  const todayTotalPoints = todayCaloriePoints + todayStepPoints;
+  const todayTotalPoints = todayFoodPoints + todayStepPoints;
 
   // Logging bonus and streak (rules live in the engine). Sleep and mood are not tracked yet.
   const itemsLoggedToday = log
@@ -295,8 +311,24 @@ export default function DashboardPlaceholder() {
   );
   const todayStreakBonus = streakPoints(streakInfo.streakDays);
 
-  // XP and rank are not tracked yet: everyone is a Recruit with 0 XP for now
-  const levelInfo = levelFromXp(0);
+  // Everything earned today, and total XP (every earlier day plus today). 1 point = 1 XP.
+  const totalPointsToday = todayTotalPoints + todayLoggingBonus + todayStreakBonus;
+  const levelInfo = levelFromXp(Math.round(pastXp + totalPointsToday));
+
+  // Save today's points whenever they change, so tomorrow they count toward XP
+  useEffect(() => {
+    if (!log) return;
+    const rounded = Math.round(totalPointsToday * 10) / 10;
+    if (rounded === savedPoints) return;
+
+    supabase
+      .from('daily_logs')
+      .update({ points_earned: rounded })
+      .eq('id', log.id)
+      .then(({ error }) => {
+        if (!error) setSavedPoints(rounded);
+      });
+  }, [log?.id, totalPointsToday, savedPoints]);
 
   // The weights drawn on the journey path (from the engine)
   const journeyWeights =
@@ -317,7 +349,7 @@ export default function DashboardPlaceholder() {
 
           {!!message && <Text style={styles.message}>{message}</Text>}
 
-          {log && (
+          {log && food && (
             <>
               <RankCard
                 rankLabel={rankLabel('recruit')}
@@ -327,7 +359,7 @@ export default function DashboardPlaceholder() {
               />
 
               <ScoreRing
-                points={todayTotalPoints + todayLoggingBonus + todayStreakBonus}
+                points={totalPointsToday}
                 maxPoints={PERFECT_DAY_POINTS}
                 questPoints={todayTotalPoints}
                 goodDayAt={POINTS.goodDayBase}
@@ -349,18 +381,36 @@ export default function DashboardPlaceholder() {
                 title="Calories"
                 subtitle={`${log.calorie_logged.toLocaleString()} / ${
                   log.calorie_target?.toLocaleString() ?? '?'
-                } kcal`}
-                chipText={`${round1(todayCaloriePoints)} / ${POINTS.calorieMax}`}
-                chipStyle={todayCaloriePoints >= POINTS.calorieMax ? 'complete' : 'earning'}
+                } kcal · ${food.calories} / ${FOOD_POINTS.calories} pts`}
+                chipText={`${todayFoodPoints} / ${POINTS.calorieMax}`}
+                chipStyle={todayFoodPoints >= POINTS.calorieMax ? 'complete' : 'earning'}
                 progress={share(log.calorie_logged, log.calorie_target)}
                 actionLabel="Add food"
                 onAction={handleAddFood}
                 actionStyle="secondary"
               >
                 <View style={styles.macroRow}>
-                  <MacroBar label="Protein" logged={log.protein_logged} target={log.protein_target} />
-                  <MacroBar label="Fat" logged={log.fat_logged} target={log.fat_target} />
-                  <MacroBar label="Carbs" logged={log.carb_logged} target={log.carb_target} />
+                  <MacroBar
+                    label="Protein"
+                    logged={log.protein_logged}
+                    target={log.protein_target}
+                    points={food.protein}
+                    maxPoints={FOOD_POINTS.protein}
+                  />
+                  <MacroBar
+                    label="Fat"
+                    logged={log.fat_logged}
+                    target={log.fat_target}
+                    points={food.fat}
+                    maxPoints={FOOD_POINTS.fat}
+                  />
+                  <MacroBar
+                    label="Carbs"
+                    logged={log.carb_logged}
+                    target={log.carb_target}
+                    points={food.carbs}
+                    maxPoints={FOOD_POINTS.carbs}
+                  />
                 </View>
                 <Text style={styles.hint}>Add what you just ate:</Text>
                 <TextInput
@@ -468,10 +518,14 @@ function MacroBar({
   label,
   logged,
   target,
+  points,
+  maxPoints,
 }: {
   label: string;
   logged: number;
   target: number | null;
+  points: number;
+  maxPoints: number;
 }) {
   return (
     <View style={styles.macro}>
@@ -482,6 +536,9 @@ function MacroBar({
       <View style={styles.macroTrack}>
         <View style={[styles.macroFill, { width: `${share(logged, target) * 100}%` }]} />
       </View>
+      <Text style={styles.macroLabel}>
+        {points} / {maxPoints} pts
+      </Text>
     </View>
   );
 }
