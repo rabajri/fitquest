@@ -10,6 +10,7 @@ import {
   LOGGING,
   PERFECT_DAY_POINTS,
   POINTS,
+  STREAK,
   type StreakDay,
   calculateStreak,
   foodPoints,
@@ -377,7 +378,7 @@ export default function DashboardPlaceholder() {
                 streakDays={streakInfo.streakDays}
                 streakBonus={todayStreakBonus}
                 streakBonusMax={POINTS.streakCapPoints}
-                atRisk={streakInfo.atRisk}
+                atRisk={streakInfo.atRisk && itemsLoggedToday < STREAK.minItemsPerDay}
               />
 
               <Text style={styles.sectionTitle}>Daily quests</Text>
