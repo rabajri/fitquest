@@ -25,6 +25,7 @@ import {
 } from '@/engine';
 import { todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -350,6 +351,11 @@ export default function DashboardPlaceholder() {
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={[GAME.colors.glowTop, GAME.colors.background]}
+        style={styles.atmosphere}
+        pointerEvents="none"
+      />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.eyebrow}>TODAY</Text>
@@ -359,6 +365,7 @@ export default function DashboardPlaceholder() {
           {log && food && (
             <>
               <RankCard
+                rankId="recruit"
                 rankLabel={rankLabel('recruit')}
                 level={levelInfo.level}
                 xpIntoLevel={levelInfo.xpIntoLevel}
@@ -385,6 +392,7 @@ export default function DashboardPlaceholder() {
 
               <QuestCard
                 icon={<FoodIcon />}
+                accent={GAME.quest.food}
                 title="Calories"
                 subtitle={`${log.calorie_logged.toLocaleString()} / ${
                   log.calorie_target?.toLocaleString() ?? '?'
@@ -457,6 +465,7 @@ export default function DashboardPlaceholder() {
               {log.steps_target !== null && (
                 <QuestCard
                   icon={<StepsIcon />}
+                  accent={GAME.quest.steps}
                   title="Steps"
                   subtitle={`${log.steps_logged.toLocaleString()} / ${log.steps_target.toLocaleString()} steps`}
                   chipText={`${round1(todayStepPoints)} / ${POINTS.movementMax}`}
@@ -479,6 +488,7 @@ export default function DashboardPlaceholder() {
 
               <QuestCard
                 icon={<WaterIcon />}
+                accent={GAME.quest.water}
                 title="Water"
                 subtitle={`${log.water_logged_liters} / ${log.water_target_liters ?? '?'} L`}
                 chipText="Tracked"
@@ -552,6 +562,7 @@ function MacroBar({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: GAME.colors.background },
+  atmosphere: { position: 'absolute', top: 0, left: 0, right: 0, height: 480 },
   safeArea: { flex: 1 },
   content: { padding: GAME.spacing.screen, gap: GAME.spacing.gap },
   eyebrow: { letterSpacing: 2, color: GAME.colors.textMuted, fontSize: 12, fontWeight: '700' },
