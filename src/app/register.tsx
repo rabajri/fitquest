@@ -1,9 +1,10 @@
+import { ThemedTextInput } from '@/components/themed-text-input';
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -42,30 +43,27 @@ export default function RegisterScreen() {
     <KeyboardScreen>
       <ThemedText type="title">Create Account</ThemedText>
 
-      <TextInput
+      <ThemedTextInput
         placeholder="Name"
         value={name}
         onChangeText={setName}
         style={styles.input}
-        placeholderTextColor="#888"
       />
-      <TextInput
+      <ThemedTextInput
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
         style={styles.input}
-        placeholderTextColor="#888"
       />
-      <TextInput
+      <ThemedTextInput
         placeholder="Password"
         value={password}
         onChangeText={setPassword}
         autoCapitalize="none"
         secureTextEntry
         style={styles.input}
-        placeholderTextColor="#888"
       />
 
       <Pressable onPress={handleRegister} style={styles.button}>
@@ -82,6 +80,6 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%', color: 'white' },
+  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
   button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center' },
 });

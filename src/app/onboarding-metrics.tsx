@@ -1,3 +1,4 @@
+import { ThemedTextInput } from '@/components/themed-text-input';
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -6,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { inchesToCm } from '@/lib/units';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 type UnitSystem = 'metric' | 'imperial';
 
@@ -82,13 +83,12 @@ export default function OnboardingMetricsScreen() {
         </Pressable>
       </ThemedView>
 
-      <TextInput
+      <ThemedTextInput
         placeholder="Age"
         value={age}
         onChangeText={setAge}
         keyboardType="number-pad"
         style={styles.input}
-        placeholderTextColor="#888"
       />
 
       <ThemedText>Gender</ThemedText>
@@ -107,13 +107,12 @@ export default function OnboardingMetricsScreen() {
         </Pressable>
       </ThemedView>
 
-      <TextInput
+      <ThemedTextInput
         placeholder={unitSystem === 'metric' ? 'Height (cm)' : 'Height (in)'}
         value={height}
         onChangeText={setHeight}
         keyboardType="decimal-pad"
         style={styles.input}
-        placeholderTextColor="#888"
       />
 
       <Pressable onPress={handleContinue} style={styles.button}>
@@ -126,7 +125,7 @@ export default function OnboardingMetricsScreen() {
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%', color: 'white' },
+  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
   button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
   row: { flexDirection: 'row', gap: 8, width: '100%' },
   pill: { flex: 1, borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 10, alignItems: 'center' },

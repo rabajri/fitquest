@@ -1,3 +1,4 @@
+import { ThemedTextInput } from '@/components/themed-text-input';
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -6,7 +7,7 @@ import { getRecoveryWarnings } from '@/lib/recovery';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 const EQUIPMENT_OPTIONS = ['Dumbbells', 'Barbell', 'Resistance Bands', 'Machines', 'Full Gym Access'];
 const MACHINE_OPTIONS = [
@@ -155,13 +156,12 @@ export default function OnboardingGymSetupScreen() {
         <>
           <ThemedText>Your Dumbbell Weights (kg)</ThemedText>
           <ThemedView style={styles.row}>
-            <TextInput
+            <ThemedTextInput
               placeholder="e.g. 10"
               value={newDumbbellWeight}
               onChangeText={setNewDumbbellWeight}
               keyboardType="decimal-pad"
               style={[styles.input, { flex: 1 }]}
-              placeholderTextColor="#888"
             />
             <Pressable onPress={addDumbbellWeight} style={styles.addButton}>
               <ThemedText style={{ color: 'white' }}>Add</ThemedText>
@@ -240,7 +240,7 @@ export default function OnboardingGymSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, color: 'white' },
+  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12 },
   button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
   addButton: { backgroundColor: '#3b82f6', borderRadius: 8, paddingHorizontal: 16, justifyContent: 'center' },
   row: { flexDirection: 'row', gap: 8, width: '100%' },

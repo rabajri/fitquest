@@ -1,3 +1,4 @@
+import { ThemedTextInput } from '@/components/themed-text-input';
 import { KeyboardScreen } from '@/components/keyboard-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -6,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { lbToKg } from '@/lib/units';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 type Goal = 'lose_weight' | 'gain_muscle' | '';
 
@@ -145,13 +146,12 @@ export default function OnboardingGoalScreen() {
         </Pressable>
       </ThemedView>
 
-      <TextInput
+      <ThemedTextInput
         placeholder="Current Weight"
         value={currentWeight}
         onChangeText={setCurrentWeight}
         keyboardType="decimal-pad"
         style={styles.input}
-        placeholderTextColor="#888"
       />
 
       {healthyRange && (
@@ -162,13 +162,12 @@ export default function OnboardingGoalScreen() {
 
       {goal === 'lose_weight' && (
         <>
-          <TextInput
+          <ThemedTextInput
             placeholder="Target Weight"
             value={targetWeight}
             onChangeText={setTargetWeight}
             keyboardType="decimal-pad"
             style={styles.input}
-            placeholderTextColor="#888"
           />
 
           <ThemedText>Do you want a workout plan?</ThemedText>
@@ -199,7 +198,7 @@ export default function OnboardingGoalScreen() {
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%', color: 'white' },
+  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
   button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
   row: { flexDirection: 'row', gap: 8, width: '100%' },
   pill: { flex: 1, borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 10, alignItems: 'center' },
