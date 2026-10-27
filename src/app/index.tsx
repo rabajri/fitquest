@@ -12,7 +12,7 @@ export default function IndexScreen() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) {
-        router.replace('/register');
+        router.replace('/welcome');
         setChecking(false);
         return;
       }
