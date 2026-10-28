@@ -16,6 +16,18 @@ export const HEIGHT_LIMITS_CM = {
   max: 230,
 } as const;
 
+/** Ages outside this range are rejected at onboarding. The calorie formulas are for adults, not children. */
+export const AGE_LIMITS = {
+  min: 16,
+  max: 100,
+} as const;
+
+/** Body weights outside this range are rejected at onboarding (always in kg). */
+export const WEIGHT_LIMITS_KG = {
+  min: 30,
+  max: 300,
+} as const;
+
 /** Training days per week → activity level. 0 days is sedentary. (The spec's ranges overlap at 3 days; 3 counts as light.) */
 export const ACTIVITY_BY_DAYS = {
   lightMaxDays: 3,
