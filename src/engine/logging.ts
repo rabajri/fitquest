@@ -1,6 +1,6 @@
 import { LOGGING } from './constants';
 
-/** What was logged today, straight from the day's log row. Sleep and mood don't exist yet, so they are optional. */
+/** What was logged today, straight from the day's log row. Mood doesn't exist yet, so it is optional. */
 export type LoggedToday = {
   /** How many times food was added today. */
   mealsLogged: number;

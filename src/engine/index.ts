@@ -7,6 +7,7 @@ export * from './macros';
 export * from './milestones';
 export * from './plan';
 export * from './points';
+export * from './sleep';
 export * from './steps';
 export * from './streak';
 export * from './trial';

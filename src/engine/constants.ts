@@ -149,6 +149,18 @@ export const POINTS = {
   closeBand: 0.1, steepBand: 0.25, zeroBand: 0.4,
 } as const;
 
+/**
+ * Sleep quest. The spec recommends 7–9 hours a night, so the target is the middle.
+ * Times are local "HH:MM". Last night's sleep is logged on the day you wake up.
+ */
+export const SLEEP = {
+  targetHours: 8,
+  defaultBedtime: '23:00',
+  defaultWakeTime: '07:00',
+  /** Anything longer is treated as a typo (e.g. AM/PM mixed up). */
+  maxHours: 16,
+} as const;
+
 /** Streak rules. A streak day needs at least minItemsPerDay logged items. */
 export const STREAK = {
   minItemsPerDay: 2,

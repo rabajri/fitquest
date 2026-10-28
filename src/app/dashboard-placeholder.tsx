@@ -10,6 +10,7 @@ import {
   LOGGING,
   PERFECT_DAY_POINTS,
   POINTS,
+  SLEEP,
   STREAK,
   type StreakDay,
   calculateStreak,
@@ -19,12 +20,15 @@ import {
   loggingPoints,
   movementPoints,
   rankLabel,
+  sleepHoursBetween,
+  sleepPoints,
   streakPoints,
   waterFullBonusItems,
   weightPath,
 } from '@/engine';
-import { todayLocalDate } from '@/lib/dates';
+import { dateToTime, formatClock, timeToDate, todayLocalDate } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -61,10 +65,17 @@ type TodayLog = {
   steps_logged: number;
   meals_logged: number;
   points_earned: number;
+  /** Local "HH:MM:SS" from the database, or null if sleep isn't logged yet. */
+  sleep_bedtime: string | null;
+  sleep_wake_time: string | null;
+  sleep_hours: number | null;
+  sleep_target_hours: number | null;
 };
 
 const LOG_COLUMNS =
-  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged, meals_logged, points_earned';
+  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged, meals_logged, points_earned, sleep_bedtime, sleep_wake_time, sleep_hours, sleep_target_hours';
+
+type SleepField = 'bedtime' | 'wake';
 
 function round1(n: number) {
   return Math.round(n * 10) / 10;
@@ -85,6 +96,11 @@ export default function DashboardPlaceholder() {
   const [foodFat, setFoodFat] = useState('');
   const [foodCarbs, setFoodCarbs] = useState('');
   const [stepsInput, setStepsInput] = useState('');
+
+  // Last night's sleep, picked as two clock times. Which picker is open, if any.
+  const [bedtime, setBedtime] = useState(() => timeToDate(SLEEP.defaultBedtime));
+  const [wakeTime, setWakeTime] = useState(() => timeToDate(SLEEP.defaultWakeTime));
+  const [openPicker, setOpenPicker] = useState<SleepField | null>(null);
 
   // Earlier days, used to work out the streak (today is added live below)
   const [history, setHistory] = useState<StreakDay[]>([]);
@@ -151,6 +167,7 @@ export default function DashboardPlaceholder() {
               carb_target: planData.carb_grams,
               water_target_liters: planData.water_liters,
               steps_target: planData.step_goal,
+              sleep_target_hours: SLEEP.targetHours,
             })
             .select(LOG_COLUMNS)
             .single();
@@ -164,11 +181,14 @@ export default function DashboardPlaceholder() {
 
         setLog(todayLog);
         setSavedPoints(Number(todayLog.points_earned));
+        // Show the saved sleep times, or the usual defaults if nothing is logged yet
+        setBedtime(timeToDate(todayLog.sleep_bedtime ?? SLEEP.defaultBedtime));
+        setWakeTime(timeToDate(todayLog.sleep_wake_time ?? SLEEP.defaultWakeTime));
 
         // Earlier days, for the streak and XP. A day with no row counts as nothing logged.
         const { data: pastRows } = await supabase
           .from('daily_logs')
-          .select('log_date, meals_logged, water_logged_liters, water_target_liters, steps_logged, points_earned')
+          .select('log_date, meals_logged, water_logged_liters, water_target_liters, steps_logged, sleep_hours, points_earned')
           .eq('user_id', user.id)
           .lt('log_date', today)
           .order('log_date', { ascending: true });
@@ -183,6 +203,7 @@ export default function DashboardPlaceholder() {
               waterLiters: row.water_logged_liters,
               waterTargetLiters: row.water_target_liters,
               steps: row.steps_logged,
+              sleepHours: row.sleep_hours,
             }),
           }))
         );
@@ -277,6 +298,41 @@ export default function DashboardPlaceholder() {
     setStepsInput('');
   }
 
+  function handlePickTime(_event: unknown, selected: Date) {
+    const field = openPicker;
+    setOpenPicker(null);
+    if (field === 'bedtime') setBedtime(selected);
+    if (field === 'wake') setWakeTime(selected);
+  }
+
+  async function handleSaveSleep() {
+    if (!log) return;
+
+    const bed = dateToTime(bedtime);
+    const wake = dateToTime(wakeTime);
+    const hours = sleepHoursBetween(bed, wake);
+    if (hours > SLEEP.maxHours) {
+      setMessage(`That's ${hours} hours of sleep. Please check the times (AM / PM).`);
+      return;
+    }
+
+    const next = {
+      sleep_bedtime: bed,
+      sleep_wake_time: wake,
+      sleep_hours: hours,
+      sleep_target_hours: log.sleep_target_hours ?? SLEEP.targetHours,
+    };
+
+    const { error } = await supabase.from('daily_logs').update(next).eq('id', log.id);
+
+    if (error) {
+      setMessage(`Could not save sleep: ${error.message}`);
+      return;
+    }
+    setMessage('');
+    setLog({ ...log, ...next });
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace('/login');
@@ -294,16 +350,20 @@ export default function DashboardPlaceholder() {
   const todayFoodPoints = food?.total ?? 0;
   const todayStepPoints =
     log && log.steps_target ? movementPoints(log.steps_logged, log.steps_target) : 0;
-  // Sleep and tasks are not tracked yet, so they count as 0 for now
-  const todayTotalPoints = todayFoodPoints + todayStepPoints;
+  const sleepTarget = log?.sleep_target_hours ?? SLEEP.targetHours;
+  const todaySleepPoints =
+    log && log.sleep_hours != null ? sleepPoints(log.sleep_hours, sleepTarget) : 0;
+  // Daily tasks are not tracked yet, so they count as 0 for now
+  const todayTotalPoints = todayFoodPoints + todayStepPoints + todaySleepPoints;
 
-  // Logging bonus and streak (rules live in the engine). Sleep and mood are not tracked yet.
+  // Logging bonus and streak (rules live in the engine). Mood is not tracked yet.
   const loggedToday = log
     ? {
         mealsLogged: log.meals_logged,
         waterLiters: log.water_logged_liters,
         waterTargetLiters: log.water_target_liters,
         steps: log.steps_logged,
+        sleepHours: log.sleep_hours,
       }
     : null;
   const itemsLoggedToday = loggedToday ? loggedItemCount(loggedToday) : 0;
@@ -500,11 +560,49 @@ export default function DashboardPlaceholder() {
               />
 
               <QuestCard
-                icon={<SleepIcon color={GAME.colors.textMuted} />}
+                icon={<SleepIcon />}
+                accent={GAME.quest.sleep}
                 title="Sleep"
-                subtitle="Logging comes soon · worth 20 points"
-                dimmed
-              />
+                subtitle={
+                  log.sleep_hours != null
+                    ? `${log.sleep_hours} h slept · target ${sleepTarget} h`
+                    : `Log last night's sleep · target ${sleepTarget} h`
+                }
+                chipText={`${round1(todaySleepPoints)} / ${POINTS.sleepMax}`}
+                chipStyle={
+                  todaySleepPoints >= POINTS.sleepMax
+                    ? 'complete'
+                    : log.sleep_hours != null
+                      ? 'earning'
+                      : 'neutral'
+                }
+                progress={todaySleepPoints / POINTS.sleepMax}
+                actionLabel={log.sleep_hours != null ? 'Update sleep' : 'Save sleep'}
+                onAction={handleSaveSleep}
+                actionStyle="secondary"
+              >
+                <View style={styles.sleepRow}>
+                  <Pressable onPress={() => setOpenPicker('bedtime')} style={styles.timeBox}>
+                    <Text style={styles.macroLabel}>Went to bed</Text>
+                    <Text style={styles.timeValue}>{formatClock(bedtime)}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setOpenPicker('wake')} style={styles.timeBox}>
+                    <Text style={styles.macroLabel}>Woke up</Text>
+                    <Text style={styles.timeValue}>{formatClock(wakeTime)}</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.hint}>
+                  {sleepHoursBetween(dateToTime(bedtime), dateToTime(wakeTime))} hours of sleep
+                </Text>
+                {openPicker && (
+                  <DateTimePicker
+                    value={openPicker === 'bedtime' ? bedtime : wakeTime}
+                    mode="time"
+                    onValueChange={handlePickTime}
+                    onDismiss={() => setOpenPicker(null)}
+                  />
+                )}
+              </QuestCard>
 
               <QuestCard
                 icon={<TasksIcon color={GAME.colors.textMuted} />}
@@ -589,6 +687,17 @@ const styles = StyleSheet.create({
     color: GAME.colors.text,
     backgroundColor: GAME.colors.background,
   },
+  sleepRow: { flexDirection: 'row', gap: 12 },
+  timeBox: {
+    flex: 1,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: GAME.colors.border,
+    borderRadius: GAME.radius.button,
+    padding: 12,
+    backgroundColor: GAME.colors.background,
+  },
+  timeValue: { color: GAME.colors.text, fontSize: 18, fontWeight: '700' },
   logout: {
     backgroundColor: '#ef4444',
     padding: 14,
