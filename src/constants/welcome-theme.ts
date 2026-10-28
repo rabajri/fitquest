@@ -1,4 +1,4 @@
-/** Colours for the intro screens only. They have their own lime look, separate from the dashboard. */
+/** Colours for the intro, sign-in and onboarding screens. They have their own lime look, separate from the dashboard. */
 export const WELCOME = {
   background: '#0A0C11',
   accent: '#C6F432',
@@ -10,4 +10,10 @@ export const WELCOME = {
   card: '#141821',
   cardBorder: '#262C3A',
   track: '#232937',
+  placeholder: '#5E6676',
+  accentSoft: 'rgba(198, 244, 50, 0.12)',
+  danger: '#FF7A7A',
+  dangerSoft: 'rgba(255, 122, 122, 0.10)',
+  warning: '#FBBF24',
+  warningSoft: 'rgba(251, 191, 36, 0.10)',
 } as const;

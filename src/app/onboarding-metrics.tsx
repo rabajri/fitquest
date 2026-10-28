@@ -1,13 +1,20 @@
-import { ThemedTextInput } from '@/components/themed-text-input';
-import { KeyboardScreen } from '@/components/keyboard-screen';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { HEIGHT_LIMITS_CM } from '@/engine/constants';
+import {
+  Field,
+  FormMessage,
+  FormScreen,
+  FormTitle,
+  isBusyMessage,
+  Option,
+  OptionRow,
+  PrimaryButton,
+  SectionLabel,
+} from '@/components/form/form-ui';
+import { AGE_LIMITS, HEIGHT_LIMITS_CM } from '@/engine/constants';
+import { parseDecimal } from '@/lib/numbers';
 import { supabase } from '@/lib/supabase';
 import { inchesToCm } from '@/lib/units';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
 
 type UnitSystem = 'metric' | 'imperial';
 
@@ -24,8 +31,15 @@ export default function OnboardingMetricsScreen() {
       return;
     }
 
+    const ageYears = parseDecimal(age);
+    if (!Number.isInteger(ageYears) || ageYears < AGE_LIMITS.min || ageYears > AGE_LIMITS.max) {
+      setMessage(`Age should be a whole number between ${AGE_LIMITS.min} and ${AGE_LIMITS.max}.`);
+      return;
+    }
+
     // We always store height in cm, whatever unit the user picked
-    const heightCm = unitSystem === 'imperial' ? inchesToCm(Number(height)) : Number(height);
+    const heightValue = parseDecimal(height);
+    const heightCm = unitSystem === 'imperial' ? inchesToCm(heightValue) : heightValue;
 
     if (!(heightCm >= HEIGHT_LIMITS_CM.min && heightCm <= HEIGHT_LIMITS_CM.max)) {
       setMessage(
@@ -47,7 +61,7 @@ export default function OnboardingMetricsScreen() {
       .upsert(
         {
           user_id: user.id,
-          age: Number(age),
+          age: ageYears,
           gender,
           height_cm: heightCm,
           unit_system: unitSystem,
@@ -60,74 +74,69 @@ export default function OnboardingMetricsScreen() {
       return;
     }
 
-    router.replace('/onboarding-goal');
+    setMessage('');
+    // push (not replace) so the next step can come back here
+    router.push('/onboarding-goal');
   }
 
   return (
-    <KeyboardScreen>
-      <ThemedText type="title">About You</ThemedText>
+    <FormScreen step={{ current: 1, total: 4 }}>
+      <FormTitle
+        eyebrow="ABOUT YOU"
+        title="Let's get to know you."
+        subtitle="We use this to work out how much energy your body needs each day."
+      />
 
-      <ThemedText>Units</ThemedText>
-      <ThemedView style={styles.row}>
-        <Pressable
+      <SectionLabel>Units</SectionLabel>
+      <OptionRow>
+        <Option
+          label="Metric"
+          sublabel="kg, cm"
+          grow
+          selected={unitSystem === 'metric'}
           onPress={() => setUnitSystem('metric')}
-          style={[styles.pill, unitSystem === 'metric' && styles.pillActive]}
-        >
-          <ThemedText>Metric (kg, cm)</ThemedText>
-        </Pressable>
-        <Pressable
+        />
+        <Option
+          label="Imperial"
+          sublabel="lb, in"
+          grow
+          selected={unitSystem === 'imperial'}
           onPress={() => setUnitSystem('imperial')}
-          style={[styles.pill, unitSystem === 'imperial' && styles.pillActive]}
-        >
-          <ThemedText>Imperial (lb, in)</ThemedText>
-        </Pressable>
-      </ThemedView>
+        />
+      </OptionRow>
 
-      <ThemedTextInput
-        placeholder="Age"
+      <SectionLabel>Gender</SectionLabel>
+      <OptionRow>
+        <Option
+          label="Female"
+          grow
+          selected={gender === 'female'}
+          onPress={() => setGender('female')}
+        />
+        <Option label="Male" grow selected={gender === 'male'} onPress={() => setGender('male')} />
+      </OptionRow>
+
+      <Field
+        label="Age"
+        placeholder="e.g. 28"
         value={age}
         onChangeText={setAge}
         keyboardType="number-pad"
-        style={styles.input}
+        suffix="years"
       />
 
-      <ThemedText>Gender</ThemedText>
-      <ThemedView style={styles.row}>
-        <Pressable
-          onPress={() => setGender('female')}
-          style={[styles.pill, gender === 'female' && styles.pillActive]}
-        >
-          <ThemedText>Female</ThemedText>
-        </Pressable>
-        <Pressable
-          onPress={() => setGender('male')}
-          style={[styles.pill, gender === 'male' && styles.pillActive]}
-        >
-          <ThemedText>Male</ThemedText>
-        </Pressable>
-      </ThemedView>
-
-      <ThemedTextInput
-        placeholder={unitSystem === 'metric' ? 'Height (cm)' : 'Height (in)'}
+      <Field
+        label="Height"
+        placeholder={unitSystem === 'metric' ? 'e.g. 165' : 'e.g. 65'}
         value={height}
         onChangeText={setHeight}
         keyboardType="decimal-pad"
-        style={styles.input}
+        suffix={unitSystem === 'metric' ? 'cm' : 'in'}
       />
 
-      <Pressable onPress={handleContinue} style={styles.button}>
-        <ThemedText style={{ color: 'white' }}>Continue</ThemedText>
-      </Pressable>
+      <FormMessage text={message} />
 
-      {!!message && <ThemedText>{message}</ThemedText>}
-    </KeyboardScreen>
+      <PrimaryButton label="Continue" onPress={handleContinue} loading={isBusyMessage(message)} />
+    </FormScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
-  button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
-  row: { flexDirection: 'row', gap: 8, width: '100%' },
-  pill: { flex: 1, borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 10, alignItems: 'center' },
-  pillActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-});

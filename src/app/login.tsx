@@ -1,10 +1,15 @@
-import { ThemedTextInput } from '@/components/themed-text-input';
-import { KeyboardScreen } from '@/components/keyboard-screen';
-import { ThemedText } from '@/components/themed-text';
+import {
+  Field,
+  FormMessage,
+  FormScreen,
+  FormTitle,
+  isBusyMessage,
+  LinkButton,
+  PrimaryButton,
+} from '@/components/form/form-ui';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -34,40 +39,43 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardScreen>
-      <ThemedText type="title">Log In</ThemedText>
+    <FormScreen>
+      <FormTitle
+        eyebrow="WELCOME BACK"
+        title="Log in to keep your streak going."
+        subtitle="Pick up your quests right where you left off."
+      />
 
-      <ThemedTextInput
-        placeholder="Email"
+      <Field
+        label="Email"
+        placeholder="you@example.com"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        autoComplete="email"
         keyboardType="email-address"
-        style={styles.input}
+        textContentType="emailAddress"
       />
-      <ThemedTextInput
-        placeholder="Password"
+      <Field
+        label="Password"
+        placeholder="Your password"
         value={password}
         onChangeText={setPassword}
         autoCapitalize="none"
+        autoComplete="current-password"
         secureTextEntry
-        style={styles.input}
+        textContentType="password"
       />
 
-      <Pressable onPress={handleLogin} style={styles.button}>
-        <ThemedText style={{ color: 'white' }}>Log In</ThemedText>
-      </Pressable>
+      <FormMessage text={message} />
 
-      <Pressable onPress={() => router.push('/register')}>
-        <ThemedText>Don't have an account? Sign up</ThemedText>
-      </Pressable>
+      <PrimaryButton label="Log in" onPress={handleLogin} loading={isBusyMessage(message)} />
 
-      {!!message && <ThemedText>{message}</ThemedText>}
-    </KeyboardScreen>
+      <LinkButton
+        label="Don't have an account?"
+        strong="Sign up"
+        onPress={() => router.replace('/register')}
+      />
+    </FormScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
-  button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center' },
-});

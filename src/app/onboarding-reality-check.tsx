@@ -1,5 +1,14 @@
-import { KeyboardScreen } from '@/components/keyboard-screen';
-import { ThemedText } from '@/components/themed-text';
+import {
+  FormMessage,
+  FormScreen,
+  FormTitle,
+  isBusyMessage,
+  LinkButton,
+  Notice,
+  PrimaryButton,
+  SectionLabel,
+} from '@/components/form/form-ui';
+import { WELCOME } from '@/constants/welcome-theme';
 import {
   calculateWeightLossPlan,
   earliestSafeDays,
@@ -10,7 +19,7 @@ import { supabase } from '@/lib/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -47,12 +56,10 @@ export default function OnboardingRealityCheckScreen() {
     loadEarliest();
   }, []);
 
-  function handlePick(event: { type: string }, selected?: Date) {
+  function handlePick(_event: unknown, selected: Date) {
     setShowPicker(false);
-    if (event.type === 'set' && selected) {
-      setGoalDate(selected);
-      setMessage('');
-    }
+    setGoalDate(selected);
+    setMessage('');
   }
 
   async function handleFinish() {
@@ -170,16 +177,28 @@ export default function OnboardingRealityCheckScreen() {
       return;
     }
 
+    // Clear the onboarding steps so Back can't return to them from the dashboard
+    if (router.canDismiss()) router.dismissAll();
     router.replace('/dashboard-placeholder');
   }
 
   return (
-    <KeyboardScreen>
-      <ThemedText type="title">Reality Check</ThemedText>
-      <ThemedText>By what date do you want to reach your goal?</ThemedText>
+    <FormScreen step={{ current: 4, total: 4 }}>
+      <FormTitle
+        eyebrow="REALITY CHECK"
+        title="When do you want to get there?"
+        subtitle="We'll check your date is safe: at most 1% of your body weight a week."
+      />
 
-      <Pressable onPress={() => setShowPicker(true)} style={styles.input}>
-        <ThemedText>{goalDate ? formatDate(goalDate) : 'Pick a date'}</ThemedText>
+      <SectionLabel>Goal date</SectionLabel>
+      <Pressable
+        onPress={() => setShowPicker(true)}
+        style={({ pressed }) => [styles.dateBox, showPicker && styles.dateBoxActive, pressed && styles.pressed]}
+        accessibilityRole="button">
+        <Text style={goalDate ? styles.dateText : styles.datePlaceholder}>
+          {goalDate ? formatDate(goalDate) : 'Pick a date'}
+        </Text>
+        <Text style={styles.dateIcon}>📅</Text>
       </Pressable>
 
       {showPicker && (
@@ -187,24 +206,57 @@ export default function OnboardingRealityCheckScreen() {
           value={goalDate ?? earliestDate ?? addDays(new Date(), 1)}
           mode="date"
           minimumDate={addDays(new Date(), 1)}
-          onChange={handlePick}
+          onValueChange={handlePick}
+          onDismiss={() => setShowPicker(false)}
+          themeVariant="dark"
+          accentColor={WELCOME.accent}
+          textColor={WELCOME.text}
         />
       )}
 
       {earliestDate && (
-        <ThemedText>Earliest safe date for your goal: {formatDate(earliestDate)}</ThemedText>
+        <>
+          <Notice text={`Earliest safe date for your goal: ${formatDate(earliestDate)}`} />
+          {goalDate?.getTime() !== earliestDate.getTime() && (
+            <LinkButton
+              label="Go as fast as is safe?"
+              strong="Use this date"
+              align="left"
+              onPress={() => {
+                setGoalDate(earliestDate);
+                setMessage('');
+              }}
+            />
+          )}
+        </>
       )}
 
-      <Pressable onPress={handleFinish} style={styles.button}>
-        <ThemedText style={{ color: 'white' }}>Finish Setup</ThemedText>
-      </Pressable>
+      <FormMessage text={message} />
 
-      {!!message && <ThemedText>{message}</ThemedText>}
-    </KeyboardScreen>
+      <PrimaryButton
+        label="Build my plan"
+        onPress={handleFinish}
+        loading={isBusyMessage(message)}
+      />
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
-  button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
+  pressed: { opacity: 0.75 },
+  dateBox: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: WELCOME.cardBorder,
+    backgroundColor: WELCOME.card,
+    paddingHorizontal: 16,
+  },
+  dateBoxActive: { borderColor: WELCOME.accent },
+  dateText: { color: WELCOME.text, fontSize: 16 },
+  datePlaceholder: { color: WELCOME.placeholder, fontSize: 16 },
+  dateIcon: { fontSize: 18 },
 });

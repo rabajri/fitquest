@@ -1,18 +1,25 @@
-import { ThemedTextInput } from '@/components/themed-text-input';
-import { KeyboardScreen } from '@/components/keyboard-screen';
-import { ThemedText } from '@/components/themed-text';
+import {
+  Field,
+  FormMessage,
+  FormScreen,
+  FormTitle,
+  isBusyMessage,
+  LinkButton,
+  PrimaryButton,
+} from '@/components/form/form-ui';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
   async function handleRegister() {
+    setNeedsConfirmation(false);
     setMessage('Creating account...');
     const { data, error } = await supabase.auth.signUp({ email, password });
 
@@ -23,6 +30,7 @@ export default function RegisterScreen() {
 
     const userId = data.user?.id;
     if (!userId) {
+      setNeedsConfirmation(true);
       setMessage('Check your email to confirm, then log in.');
       return;
     }
@@ -40,46 +48,55 @@ export default function RegisterScreen() {
   }
 
   return (
-    <KeyboardScreen>
-      <ThemedText type="title">Create Account</ThemedText>
+    <FormScreen>
+      <FormTitle
+        eyebrow="CREATE ACCOUNT"
+        title="Let's start your quest."
+        subtitle="It takes a minute. Then we'll build your plan together."
+      />
 
-      <ThemedTextInput
-        placeholder="Name"
+      <Field
+        label="Name"
+        placeholder="What should we call you?"
         value={name}
         onChangeText={setName}
-        style={styles.input}
+        autoComplete="name"
+        textContentType="name"
       />
-      <ThemedTextInput
-        placeholder="Email"
+      <Field
+        label="Email"
+        placeholder="you@example.com"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        autoComplete="email"
         keyboardType="email-address"
-        style={styles.input}
+        textContentType="emailAddress"
       />
-      <ThemedTextInput
-        placeholder="Password"
+      <Field
+        label="Password"
+        placeholder="At least 6 characters"
         value={password}
         onChangeText={setPassword}
         autoCapitalize="none"
+        autoComplete="new-password"
         secureTextEntry
-        style={styles.input}
+        textContentType="newPassword"
       />
 
-      <Pressable onPress={handleRegister} style={styles.button}>
-        <ThemedText style={{ color: 'white' }}>Sign Up</ThemedText>
-      </Pressable>
+      <FormMessage text={message} tone={needsConfirmation ? 'info' : undefined} />
 
-      <Pressable onPress={() => router.push('/login')}>
-        <ThemedText>Already have an account? Log in</ThemedText>
-      </Pressable>
+      <PrimaryButton
+        label="Create my account"
+        onPress={handleRegister}
+        loading={isBusyMessage(message)}
+      />
 
-      {!!message && <ThemedText>{message}</ThemedText>}
-    </KeyboardScreen>
+      <LinkButton
+        label="Already have an account?"
+        strong="Log in"
+        onPress={() => router.replace('/login')}
+      />
+    </FormScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
-  button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center' },
-});

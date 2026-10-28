@@ -1,9 +1,8 @@
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { WELCOME } from '@/constants/welcome-theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function IndexScreen() {
@@ -33,15 +32,15 @@ export default function IndexScreen() {
   }, []);
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText>{checking ? 'Loading...' : ''}</ThemedText>
+        {checking && <ActivityIndicator color={WELCOME.accent} />}
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: WELCOME.background },
   safeArea: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

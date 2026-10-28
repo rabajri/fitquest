@@ -1,13 +1,22 @@
-import { ThemedTextInput } from '@/components/themed-text-input';
-import { KeyboardScreen } from '@/components/keyboard-screen';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import {
+  Field,
+  FormMessage,
+  FormScreen,
+  FormTitle,
+  isBusyMessage,
+  Notice,
+  Option,
+  OptionRow,
+  PrimaryButton,
+  SectionLabel,
+} from '@/components/form/form-ui';
+import { WEIGHT_LIMITS_KG } from '@/engine/constants';
 import { getHealthyWeightRangeKg } from '@/lib/bmi';
+import { parseDecimal } from '@/lib/numbers';
 import { supabase } from '@/lib/supabase';
-import { lbToKg } from '@/lib/units';
+import { kgToLb, lbToKg } from '@/lib/units';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
 
 type Goal = 'lose_weight' | 'gain_muscle' | '';
 
@@ -20,6 +29,10 @@ export default function OnboardingGoalScreen() {
   const [message, setMessage] = useState('');
   const [healthyRange, setHealthyRange] = useState<{ min: number; max: number } | null>(null);
   const [isImperial, setIsImperial] = useState(false);
+
+  const unit = isImperial ? 'lb' : 'kg';
+  // Weights are stored in kg; show them in the user's own unit
+  const showWeight = (kg: number) => (isImperial ? Math.round(kgToLb(kg)) : kg);
 
   // Runs every time this screen appears, not just the first time
   useFocusEffect(
@@ -69,10 +82,20 @@ export default function OnboardingGoalScreen() {
       return;
     }
 
-    const currentWeightKg = isImperial ? lbToKg(Number(currentWeight)) : Number(currentWeight);
-    const targetWeightKg = targetWeight
-      ? (isImperial ? lbToKg(Number(targetWeight)) : Number(targetWeight))
-      : null;
+    const toKg = (text: string) => {
+      const value = parseDecimal(text);
+      return isImperial ? lbToKg(value) : value;
+    };
+    const currentWeightKg = toKg(currentWeight);
+    const targetWeightKg = targetWeight ? toKg(targetWeight) : null;
+
+    const inLimits = (kg: number) => kg >= WEIGHT_LIMITS_KG.min && kg <= WEIGHT_LIMITS_KG.max;
+    if (!inLimits(currentWeightKg) || (targetWeightKg !== null && !inLimits(targetWeightKg))) {
+      setMessage(
+        `Weights should be numbers between ${showWeight(WEIGHT_LIMITS_KG.min)} and ${showWeight(WEIGHT_LIMITS_KG.max)} ${unit}.`
+      );
+      return;
+    }
 
     if (goal === 'lose_weight' && targetWeightKg && targetWeightKg >= currentWeightKg) {
       setMessage('Target weight should be less than your current weight.');
@@ -80,7 +103,7 @@ export default function OnboardingGoalScreen() {
     }
 
     if (targetWeightKg && healthyRange && targetWeightKg < healthyRange.min) {
-      setMessage(`Target weight is below a healthy minimum for your height (${healthyRange.min} kg).`);
+      setMessage(`Target weight is below a healthy minimum for your height (${showWeight(healthyRange.min)} ${unit}).`);
       return;
     }
 
@@ -125,83 +148,77 @@ export default function OnboardingGoalScreen() {
       return;
     }
 
-    // Everyone ends at Reality Check, where the plan is calculated
-    router.replace(finalWantsWorkout ? '/onboarding-gym-setup' : '/onboarding-reality-check');
+    // Everyone ends at Reality Check, where the plan is calculated.
+    // push (not replace) so the next step can come back here
+    setMessage('');
+    router.push(finalWantsWorkout ? '/onboarding-gym-setup' : '/onboarding-reality-check');
   }
 
   return (
-    <KeyboardScreen>
-      <ThemedText type="title">Your Goal</ThemedText>
+    <FormScreen step={{ current: 2, total: 4 }}>
+      <FormTitle
+        eyebrow="YOUR GOAL"
+        title="What are we working toward?"
+        subtitle="Your weights stay private. They only shape your daily targets."
+      />
 
-      <ThemedView style={styles.row}>
-        <Pressable
+      <OptionRow>
+        <Option
+          label="Lose weight"
+          grow
+          selected={goal === 'lose_weight'}
           onPress={() => setGoal('lose_weight')}
-          style={[styles.pill, goal === 'lose_weight' && styles.pillActive]}
-        >
-          <ThemedText>Lose Weight</ThemedText>
-        </Pressable>
-        <Pressable disabled style={[styles.pill, styles.pillDisabled]}>
-          <ThemedText>Gain Muscle</ThemedText>
-          <ThemedText type="small">Coming soon</ThemedText>
-        </Pressable>
-      </ThemedView>
+        />
+        <Option label="Gain muscle" sublabel="Coming soon" grow disabled />
+      </OptionRow>
 
-      <ThemedTextInput
-        placeholder="Current Weight"
+      <Field
+        label="Current weight"
+        placeholder={isImperial ? 'e.g. 180' : 'e.g. 82'}
         value={currentWeight}
         onChangeText={setCurrentWeight}
         keyboardType="decimal-pad"
-        style={styles.input}
+        suffix={unit}
       />
-
-      {healthyRange && (
-        <ThemedText type="small">
-          Healthy weight range for your height: {healthyRange.min}–{healthyRange.max} kg
-        </ThemedText>
-      )}
 
       {goal === 'lose_weight' && (
         <>
-          <ThemedTextInput
-            placeholder="Target Weight"
+          <Field
+            label="Target weight"
+            placeholder={isImperial ? 'e.g. 155' : 'e.g. 70'}
             value={targetWeight}
             onChangeText={setTargetWeight}
             keyboardType="decimal-pad"
-            style={styles.input}
+            suffix={unit}
           />
 
-          <ThemedText>Do you want a workout plan?</ThemedText>
-          <ThemedView style={styles.row}>
-            <Pressable
+          {healthyRange && (
+            <Notice
+              text={`Healthy weight range for your height: ${showWeight(healthyRange.min)}–${showWeight(healthyRange.max)} ${unit}`}
+            />
+          )}
+
+          <SectionLabel>Do you want a workout plan?</SectionLabel>
+          <OptionRow>
+            <Option
+              label="Yes, plan workouts"
+              grow
+              selected={wantsWorkout === true}
               onPress={() => setWantsWorkout(true)}
-              style={[styles.pill, wantsWorkout === true && styles.pillActive]}
-            >
-              <ThemedText>Yes</ThemedText>
-            </Pressable>
-            <Pressable
+            />
+            <Option
+              label="No, just steps"
+              grow
+              selected={wantsWorkout === false}
               onPress={() => setWantsWorkout(false)}
-              style={[styles.pill, wantsWorkout === false && styles.pillActive]}
-            >
-              <ThemedText>No</ThemedText>
-            </Pressable>
-          </ThemedView>
+            />
+          </OptionRow>
         </>
       )}
 
-      <Pressable onPress={handleContinue} style={styles.button}>
-        <ThemedText style={{ color: 'white' }}>Continue</ThemedText>
-      </Pressable>
+      <FormMessage text={message} />
 
-      {!!message && <ThemedText>{message}</ThemedText>}
-    </KeyboardScreen>
+      <PrimaryButton label="Continue" onPress={handleContinue} loading={isBusyMessage(message)} />
+    </FormScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12, width: '100%' },
-  button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
-  row: { flexDirection: 'row', gap: 8, width: '100%' },
-  pill: { flex: 1, borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 10, alignItems: 'center' },
-  pillActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  pillDisabled: { opacity: 0.4 },
-});

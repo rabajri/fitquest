@@ -1,13 +1,24 @@
-import { ThemedTextInput } from '@/components/themed-text-input';
-import { KeyboardScreen } from '@/components/keyboard-screen';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import {
+  Field,
+  FormMessage,
+  FormScreen,
+  FormTitle,
+  isBusyMessage,
+  LinkButton,
+  Notice,
+  Option,
+  OptionRow,
+  PrimaryButton,
+  SectionLabel,
+} from '@/components/form/form-ui';
 import { SESSION_MINUTES_OPTIONS } from '@/engine';
+import { parseDecimal } from '@/lib/numbers';
 import { getRecoveryWarnings } from '@/lib/recovery';
 import { supabase } from '@/lib/supabase';
+import { kgToLb, lbToKg } from '@/lib/units';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 const EQUIPMENT_OPTIONS = ['Dumbbells', 'Barbell', 'Resistance Bands', 'Machines', 'Full Gym Access'];
 const MACHINE_OPTIONS = [
@@ -25,6 +36,25 @@ export default function OnboardingGymSetupScreen() {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [sessionMinutes, setSessionMinutes] = useState<number | null>(null);
   const [message, setMessage] = useState('');
+  const [isImperial, setIsImperial] = useState(false);
+
+  const unit = isImperial ? 'lb' : 'kg';
+  // Dumbbell weights are stored in kg; show them in the user's own unit
+  const showWeight = (kg: number) => (isImperial ? Math.round(kgToLb(kg) * 10) / 10 : kg);
+
+  useEffect(() => {
+    async function loadUnits() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('unit_system')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setIsImperial(profile?.unit_system === 'imperial');
+    }
+    loadUnits();
+  }, []);
 
   function toggleEquipment(item: string) {
     setEquipment((prev) =>
@@ -39,8 +69,13 @@ export default function OnboardingGymSetupScreen() {
   }
 
   function addDumbbellWeight() {
-    const value = Number(newDumbbellWeight);
-    if (!value || value <= 0) return;
+    const typed = parseDecimal(newDumbbellWeight);
+    if (!Number.isFinite(typed) || typed <= 0) {
+      setMessage('Enter a dumbbell weight as a number, e.g. 10.');
+      return;
+    }
+    setMessage('');
+    const value = isImperial ? Math.round(lbToKg(typed) * 100) / 100 : typed;
     if (dumbbellWeights.includes(value)) {
       setNewDumbbellWeight('');
       return;
@@ -111,7 +146,9 @@ export default function OnboardingGymSetupScreen() {
       return;
     }
 
-    router.replace('/onboarding-reality-check');
+    setMessage('');
+    // push (not replace) so Reality Check can come back here
+    router.push('/onboarding-reality-check');
   }
 
   async function handleSwitchToSteps() {
@@ -129,125 +166,119 @@ export default function OnboardingGymSetupScreen() {
       return;
     }
 
-    router.replace('/onboarding-reality-check');
+    setMessage('');
+    router.push('/onboarding-reality-check');
   }
 
   return (
-    <KeyboardScreen>
-      <ThemedText type="title">Gym Setup</ThemedText>
+    <FormScreen step={{ current: 3, total: 4 }}>
+      <FormTitle
+        eyebrow="GYM SETUP"
+        title="What can you train with?"
+        subtitle="Leave equipment unselected if you'll train with bodyweight only."
+      />
 
-      <ThemedText type="small">
-        Leave equipment unselected if you'll be training with bodyweight only.
-      </ThemedText>
-      <ThemedText>Equipment Available</ThemedText>
-      <ThemedView style={styles.wrapRow}>
+      <SectionLabel>Equipment available</SectionLabel>
+      <OptionRow>
         {EQUIPMENT_OPTIONS.map((item) => (
-          <Pressable
+          <Option
             key={item}
+            label={item}
+            selected={equipment.includes(item)}
             onPress={() => toggleEquipment(item)}
-            style={[styles.pill, equipment.includes(item) && styles.pillActive]}
-          >
-            <ThemedText>{item}</ThemedText>
-          </Pressable>
+          />
         ))}
-      </ThemedView>
+      </OptionRow>
 
       {hasDumbbells && (
         <>
-          <ThemedText>Your Dumbbell Weights (kg)</ThemedText>
-          <ThemedView style={styles.row}>
-            <ThemedTextInput
+          <SectionLabel>Your dumbbell weights</SectionLabel>
+          <View style={styles.addRow}>
+            <Field
               placeholder="e.g. 10"
               value={newDumbbellWeight}
               onChangeText={setNewDumbbellWeight}
               keyboardType="decimal-pad"
-              style={[styles.input, { flex: 1 }]}
+              suffix={unit}
+              returnKeyType="done"
+              onSubmitEditing={addDumbbellWeight}
+              containerStyle={styles.addField}
             />
-            <Pressable onPress={addDumbbellWeight} style={styles.addButton}>
-              <ThemedText style={{ color: 'white' }}>Add</ThemedText>
-            </Pressable>
-          </ThemedView>
-          <ThemedView style={styles.wrapRow}>
-            {dumbbellWeights.map((w) => (
-              <Pressable key={w} onPress={() => removeDumbbellWeight(w)} style={styles.chip}>
-                <ThemedText>{w} kg ✕</ThemedText>
-              </Pressable>
-            ))}
-          </ThemedView>
+            <Option label="Add" onPress={addDumbbellWeight} style={styles.addButton} />
+          </View>
+          {dumbbellWeights.length > 0 && (
+            <OptionRow>
+              {dumbbellWeights.map((w) => (
+                <Option
+                  key={w}
+                  label={`${showWeight(w)} ${unit}  ✕`}
+                  selected
+                  onPress={() => removeDumbbellWeight(w)}
+                />
+              ))}
+            </OptionRow>
+          )}
         </>
       )}
 
       {hasMachines && (
         <>
-          <ThemedText>Which Machines?</ThemedText>
-          <ThemedView style={styles.wrapRow}>
+          <SectionLabel>Which machines?</SectionLabel>
+          <OptionRow>
             {MACHINE_OPTIONS.map((item) => (
-              <Pressable
+              <Option
                 key={item}
+                label={item}
+                selected={machineTypes.includes(item)}
                 onPress={() => toggleMachine(item)}
-                style={[styles.pill, machineTypes.includes(item) && styles.pillActive]}
-              >
-                <ThemedText>{item}</ThemedText>
-              </Pressable>
+              />
             ))}
-          </ThemedView>
+          </OptionRow>
         </>
       )}
 
-      <ThemedText>Training Days (max {MAX_DAYS})</ThemedText>
-      <ThemedView style={styles.wrapRow}>
+      <SectionLabel>Training days (max {MAX_DAYS})</SectionLabel>
+      <OptionRow>
         {DAYS.map((day) => (
-          <Pressable
+          <Option
             key={day}
+            label={day}
+            selected={selectedDays.includes(day)}
             onPress={() => toggleDay(day)}
-            style={[styles.dayPill, selectedDays.includes(day) && styles.pillActive]}
-          >
-            <ThemedText>{day}</ThemedText>
-          </Pressable>
+            style={styles.day}
+          />
         ))}
-      </ThemedView>
+      </OptionRow>
 
       {warnings.map((w) => (
-        <ThemedView key={w} style={styles.warningBox}>
-          <ThemedText type="small" style={{ color: '#fbbf24' }}>⚠️ {w}</ThemedText>
-        </ThemedView>
+        <Notice key={w} text={w} tone="warning" />
       ))}
 
-      <ThemedText>Session Length (minutes)</ThemedText>
-      <ThemedView style={styles.wrapRow}>
+      <SectionLabel>Session length</SectionLabel>
+      <OptionRow>
         {SESSION_MINUTES_OPTIONS.map((minutes) => (
-          <Pressable
+          <Option
             key={minutes}
+            label={`${minutes} min`}
+            grow
+            selected={sessionMinutes === minutes}
             onPress={() => setSessionMinutes(minutes)}
-            style={[styles.pill, sessionMinutes === minutes && styles.pillActive]}
-          >
-            <ThemedText>{minutes}</ThemedText>
-          </Pressable>
+          />
         ))}
-      </ThemedView>
+      </OptionRow>
 
-      <Pressable onPress={handleContinue} style={styles.button}>
-        <ThemedText style={{ color: 'white' }}>Continue</ThemedText>
-      </Pressable>
+      <FormMessage text={message} />
 
-      <Pressable onPress={handleSwitchToSteps}>
-        <ThemedText type="small">Actually, I'd rather just track steps</ThemedText>
-      </Pressable>
+      <PrimaryButton label="Continue" onPress={handleContinue} loading={isBusyMessage(message)} />
 
-      {!!message && <ThemedText>{message}</ThemedText>}
-    </KeyboardScreen>
+      <LinkButton label="Actually, I'd rather just" strong="track steps" onPress={handleSwitchToSteps} />
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 12 },
-  button: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, width: '100%', alignItems: 'center', marginTop: 8 },
-  addButton: { backgroundColor: '#3b82f6', borderRadius: 8, paddingHorizontal: 16, justifyContent: 'center' },
-  row: { flexDirection: 'row', gap: 8, width: '100%' },
-  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
-  pill: { borderWidth: 1, borderColor: '#444', borderRadius: 8, padding: 10, paddingHorizontal: 14 },
-  chip: { borderWidth: 1, borderColor: '#666', borderRadius: 16, padding: 8, paddingHorizontal: 12, backgroundColor: '#222' },
-  dayPill: { borderWidth: 1, borderColor: '#444', borderRadius: 8, paddingVertical: 10, width: 54, alignItems: 'center' },
-  pillActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  warningBox: { borderWidth: 1, borderColor: '#fbbf24', borderRadius: 8, padding: 10, width: '100%' },
+  addRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  addField: { flex: 1 },
+  addButton: { minWidth: 72 },
+  day: { minWidth: 64 },
 });
