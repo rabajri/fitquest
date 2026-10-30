@@ -150,11 +150,15 @@ export const POINTS = {
 } as const;
 
 /**
- * Sleep quest. The spec recommends 7–9 hours a night, so the target is the middle.
+ * Sleep quest. The spec recommends 7–9 hours a night, so that whole range earns full points.
+ * Below it, points fall in a straight line to 0 at zeroBelow hours; above it, to 0 at zeroAbove hours.
  * Times are local "HH:MM". Last night's sleep is logged on the day you wake up.
  */
 export const SLEEP = {
-  targetHours: 8,
+  fullFromHours: 7,
+  fullToHours: 9,
+  zeroBelowHours: 4,
+  zeroAboveHours: 12,
   defaultBedtime: '23:00',
   defaultWakeTime: '07:00',
   /** Anything longer is treated as a typo (e.g. AM/PM mixed up). */

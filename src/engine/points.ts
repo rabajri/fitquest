@@ -1,7 +1,7 @@
-import { POINTS } from './constants';
+import { POINTS, SLEEP } from './constants';
 
 /**
- * Points for being CLOSE to a target (calories, sleep).
+ * Points for being CLOSE to a target (calories).
  * - Within closeBand (10%) of target: full marks.
  * - Then 1 point lost per extra 1%, down to steepBand (25%).
  * - Then a gentle taper to 0 at zeroBand (40%). No cliff.
@@ -39,8 +39,19 @@ export function caloriePoints(caloriesLogged: number, calorieTarget: number): nu
   return closenessPoints(caloriesLogged, calorieTarget, POINTS.calorieMax);
 }
 
-export function sleepPoints(hoursSlept: number, targetHours: number): number {
-  return closenessPoints(hoursSlept, targetHours, POINTS.sleepMax);
+/**
+ * Sleep points: full marks for 7–9 hours (SLEEP in constants), a straight-line drop outside that range.
+ *
+ * Example: 6 hours → 13.3 points, 10 hours → 13.3 points, 4 hours or less → 0.
+ */
+export function sleepPoints(hoursSlept: number): number {
+  const { fullFromHours, fullToHours, zeroBelowHours, zeroAboveHours } = SLEEP;
+  if (hoursSlept >= fullFromHours && hoursSlept <= fullToHours) return POINTS.sleepMax;
+  const share =
+    hoursSlept < fullFromHours
+      ? (hoursSlept - zeroBelowHours) / (fullFromHours - zeroBelowHours)
+      : (zeroAboveHours - hoursSlept) / (zeroAboveHours - fullToHours);
+  return Math.round(Math.min(Math.max(share, 0), 1) * POINTS.sleepMax * 10) / 10;
 }
 
 export function movementPoints(done: number, planned: number): number {

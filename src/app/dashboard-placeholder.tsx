@@ -71,11 +71,10 @@ type TodayLog = {
   sleep_bedtime: string | null;
   sleep_wake_time: string | null;
   sleep_hours: number | null;
-  sleep_target_hours: number | null;
 };
 
 const LOG_COLUMNS =
-  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged, meals_logged, points_earned, sleep_bedtime, sleep_wake_time, sleep_hours, sleep_target_hours';
+  'id, calorie_target, calorie_logged, protein_target, protein_logged, fat_target, fat_logged, carb_target, carb_logged, water_target_liters, water_logged_liters, steps_target, steps_logged, meals_logged, points_earned, sleep_bedtime, sleep_wake_time, sleep_hours';
 
 type SleepField = 'bedtime' | 'wake';
 
@@ -168,7 +167,6 @@ export default function DashboardPlaceholder() {
               carb_target: planData.carb_grams,
               water_target_liters: planData.water_liters,
               steps_target: planData.step_goal,
-              sleep_target_hours: SLEEP.targetHours,
             })
             .select(LOG_COLUMNS)
             .single();
@@ -288,7 +286,6 @@ export default function DashboardPlaceholder() {
       sleep_bedtime: bed,
       sleep_wake_time: wake,
       sleep_hours: hours,
-      sleep_target_hours: log.sleep_target_hours ?? SLEEP.targetHours,
     };
 
     const { error } = await supabase.from('daily_logs').update(next).eq('id', log.id);
@@ -318,9 +315,9 @@ export default function DashboardPlaceholder() {
   const todayFoodPoints = food?.total ?? 0;
   const todayStepPoints =
     log && log.steps_target ? movementPoints(log.steps_logged, log.steps_target) : 0;
-  const sleepTarget = log?.sleep_target_hours ?? SLEEP.targetHours;
+  const sleepRange = `${SLEEP.fullFromHours}–${SLEEP.fullToHours} h`;
   const todaySleepPoints =
-    log && log.sleep_hours != null ? sleepPoints(log.sleep_hours, sleepTarget) : 0;
+    log && log.sleep_hours != null ? sleepPoints(log.sleep_hours) : 0;
   // Daily tasks are not tracked yet, so they count as 0 for now
   const todayTotalPoints = todayFoodPoints + todayStepPoints + todaySleepPoints;
 
@@ -522,8 +519,8 @@ export default function DashboardPlaceholder() {
                 title="Sleep"
                 subtitle={
                   log.sleep_hours != null
-                    ? `${log.sleep_hours} h slept · target ${sleepTarget} h`
-                    : `Log last night's sleep · target ${sleepTarget} h`
+                    ? `${log.sleep_hours} h slept · best ${sleepRange}`
+                    : `Log last night's sleep · best ${sleepRange}`
                 }
                 chipText={`${round1(todaySleepPoints)} / ${POINTS.sleepMax}`}
                 chipStyle={
