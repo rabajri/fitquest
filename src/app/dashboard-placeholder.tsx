@@ -1,3 +1,4 @@
+import { FoodRow } from '@/components/food/food-ui';
 import { JourneyPath } from '@/components/game/journey-path';
 import { QuestCard } from '@/components/game/quest-card';
 import { FoodIcon, SleepIcon, StepsIcon, TasksIcon, WaterIcon } from '@/components/game/quest-icons';
@@ -27,6 +28,7 @@ import {
   weightPath,
 } from '@/engine';
 import { dateToTime, formatClock, timeToDate, todayLocalDate } from '@/lib/dates';
+import { describeServing, fetchEntries, type FoodEntry, MEALS, scaleNutrition } from '@/lib/food-log';
 import { supabase } from '@/lib/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -91,10 +93,9 @@ export default function DashboardPlaceholder() {
   const [log, setLog] = useState<TodayLog | null>(null);
   const [message, setMessage] = useState('Loading your plan...');
 
-  const [foodCalories, setFoodCalories] = useState('');
-  const [foodProtein, setFoodProtein] = useState('');
-  const [foodFat, setFoodFat] = useState('');
-  const [foodCarbs, setFoodCarbs] = useState('');
+  // Today's foods, one row each (the day's totals live in the log)
+  const [foods, setFoods] = useState<FoodEntry[]>([]);
+  const [foodError, setFoodError] = useState('');
   const [stepsInput, setStepsInput] = useState('');
 
   // Last night's sleep, picked as two clock times. Which picker is open, if any.
@@ -185,6 +186,13 @@ export default function DashboardPlaceholder() {
         setBedtime(timeToDate(todayLog.sleep_bedtime ?? SLEEP.defaultBedtime));
         setWakeTime(timeToDate(todayLog.sleep_wake_time ?? SLEEP.defaultWakeTime));
 
+        fetchEntries(today)
+          .then((entries) => {
+            setFoods(entries);
+            setFoodError('');
+          })
+          .catch((e: Error) => setFoodError(`Could not load today's foods: ${e.message}`));
+
         // Earlier days, for the streak and XP. A day with no row counts as nothing logged.
         const { data: pastRows } = await supabase
           .from('daily_logs')
@@ -230,46 +238,6 @@ export default function DashboardPlaceholder() {
     }
     setMessage('');
     setLog({ ...log, water_logged_liters: next });
-  }
-
-  async function handleAddFood() {
-    if (!log) return;
-
-    const calories = Number(foodCalories || 0);
-    const protein = Number(foodProtein || 0);
-    const fat = Number(foodFat || 0);
-    const carbs = Number(foodCarbs || 0);
-
-    if ([calories, protein, fat, carbs].some((n) => Number.isNaN(n) || n < 0)) {
-      setMessage('Please enter numbers only (no negatives).');
-      return;
-    }
-    if (calories + protein + fat + carbs === 0) {
-      setMessage('Enter at least one number to add.');
-      return;
-    }
-
-    const next = {
-      calorie_logged: round1(log.calorie_logged + calories),
-      protein_logged: round1(log.protein_logged + protein),
-      fat_logged: round1(log.fat_logged + fat),
-      carb_logged: round1(log.carb_logged + carbs),
-      meals_logged: log.meals_logged + 1,
-    };
-
-    const { error } = await supabase.from('daily_logs').update(next).eq('id', log.id);
-
-    if (error) {
-      setMessage(`Could not save food: ${error.message}`);
-      return;
-    }
-
-    setMessage('');
-    setLog({ ...log, ...next });
-    setFoodCalories('');
-    setFoodProtein('');
-    setFoodFat('');
-    setFoodCarbs('');
   }
 
   async function handleAddSteps() {
@@ -461,7 +429,7 @@ export default function DashboardPlaceholder() {
                 chipStyle={todayFoodPoints >= POINTS.calorieMax ? 'complete' : 'earning'}
                 progress={share(log.calorie_logged, log.calorie_target)}
                 actionLabel="Add food"
-                onAction={handleAddFood}
+                onAction={() => router.push('/add-food')}
                 actionStyle="secondary"
               >
                 <View style={styles.macroRow}>
@@ -487,39 +455,28 @@ export default function DashboardPlaceholder() {
                     maxPoints={FOOD_POINTS.carbs}
                   />
                 </View>
-                <Text style={styles.hint}>Add what you just ate:</Text>
-                <TextInput
-                  placeholder="Calories (kcal)"
-                  value={foodCalories}
-                  onChangeText={setFoodCalories}
-                  keyboardType="decimal-pad"
-                  style={styles.input}
-                  placeholderTextColor={GAME.colors.textMuted}
-                />
-                <TextInput
-                  placeholder="Protein (g)"
-                  value={foodProtein}
-                  onChangeText={setFoodProtein}
-                  keyboardType="decimal-pad"
-                  style={styles.input}
-                  placeholderTextColor={GAME.colors.textMuted}
-                />
-                <TextInput
-                  placeholder="Fat (g)"
-                  value={foodFat}
-                  onChangeText={setFoodFat}
-                  keyboardType="decimal-pad"
-                  style={styles.input}
-                  placeholderTextColor={GAME.colors.textMuted}
-                />
-                <TextInput
-                  placeholder="Carbs (g)"
-                  value={foodCarbs}
-                  onChangeText={setFoodCarbs}
-                  keyboardType="decimal-pad"
-                  style={styles.input}
-                  placeholderTextColor={GAME.colors.textMuted}
-                />
+                {!!foodError && <Text style={styles.hint}>{foodError}</Text>}
+                {foods.length === 0 && !foodError && (
+                  <Text style={styles.hint}>Nothing logged yet today. Tap Add food to start.</Text>
+                )}
+                {MEALS.map((meal) => {
+                  const mealFoods = foods.filter((f) => f.meal === meal.id);
+                  if (mealFoods.length === 0) return null;
+                  return (
+                    <View key={meal.id} style={styles.mealGroup}>
+                      <Text style={styles.mealTitle}>{meal.label}</Text>
+                      {mealFoods.map((f) => (
+                        <FoodRow
+                          key={f.id}
+                          name={f.name}
+                          detail={describeServing(f.portion, f.servings)}
+                          calories={scaleNutrition(f, f.servings).calories}
+                          onPress={() => router.push({ pathname: '/edit-food', params: { id: f.id } })}
+                        />
+                      ))}
+                    </View>
+                  );
+                })}
               </QuestCard>
 
               {log.steps_target !== null && (
@@ -687,6 +644,8 @@ const styles = StyleSheet.create({
     color: GAME.colors.text,
     backgroundColor: GAME.colors.background,
   },
+  mealGroup: { gap: 8 },
+  mealTitle: { color: GAME.colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
   sleepRow: { flexDirection: 'row', gap: 12 },
   timeBox: {
     flex: 1,
